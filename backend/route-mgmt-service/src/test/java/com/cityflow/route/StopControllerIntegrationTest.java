@@ -2,9 +2,6 @@ package com.cityflow.route;
 
 import com.cityflow.route.dto.StopRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,8 +10,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 
@@ -23,34 +21,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.security.enabled=false")
+@SpringBootTest(properties = {
+        "app.security.enabled=false",
+        "app.kafka.enabled=false"
+})
 @AutoConfigureMockMvc
+@Testcontainers
 class StopControllerIntegrationTest {
 
+    @Container
     static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:15-alpine")
                     .withDatabaseName("cityflow")
-                    .withUsername("kledionberisha")
-                    .withPassword("kledion123");
-
-    private static final boolean DOCKER_AVAILABLE = DockerClientFactory.instance().isDockerAvailable();
-
-    @BeforeAll
-    static void startContainerIfDockerAvailable() {
-        Assumptions.assumeTrue(DOCKER_AVAILABLE, "Docker is required for Testcontainers");
-        postgres.start();
-    }
-
-    @AfterAll
-    static void stopContainer() {
-        if (postgres.isRunning()) {
-            postgres.stop();
-        }
-    }
+                    .withUsername("cityflow")
+                    .withPassword("cityflow");
 
     @DynamicPropertySource
     static void dataSourceProps(DynamicPropertyRegistry registry) {
-        Assumptions.assumeTrue(DOCKER_AVAILABLE, "Docker is required for Testcontainers");
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);

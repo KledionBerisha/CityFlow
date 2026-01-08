@@ -6,6 +6,7 @@ import com.cityflow.route.model.Stop;
 import com.cityflow.route.repository.StopRepository;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -49,7 +50,8 @@ public class StopService {
 
     @Transactional(readOnly = true)
     public Page<StopResponse> list(Pageable pageable) {
-        return repository.findAll(pageable).map(this::toDto);
+        Pageable capped = capPageable(pageable);
+        return repository.findAll(capped).map(this::toDto);
     }
 
     @Transactional(readOnly = true)
@@ -83,5 +85,10 @@ public class StopService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " out of range");
         }
         return value;
+    }
+
+    private Pageable capPageable(Pageable pageable) {
+        int size = Math.min(pageable.getPageSize(), 100);
+        return PageRequest.of(pageable.getPageNumber(), size, pageable.getSort());
     }
 }

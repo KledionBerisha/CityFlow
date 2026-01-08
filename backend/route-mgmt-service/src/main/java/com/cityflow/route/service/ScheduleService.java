@@ -93,7 +93,8 @@ public class ScheduleService {
         s.setStartTime(req.getStartTime());
         s.setEndTime(req.getEndTime());
         s.setFrequencyMin(req.getFrequencyMin());
-        s.setTimezone(req.getTimezone() == null ? "UTC" : req.getTimezone().trim());
+        String tz = req.getTimezone() == null ? "UTC" : req.getTimezone().trim();
+        s.setTimezone(tz.isEmpty() ? "UTC" : tz);
         s.setEffectiveFrom(req.getEffectiveFrom());
         s.setEffectiveTo(req.getEffectiveTo());
         return s;

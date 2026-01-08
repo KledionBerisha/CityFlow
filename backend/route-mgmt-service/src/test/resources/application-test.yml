@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    # Testcontainers will override these
+    url: jdbc:postgresql://localhost:5432/testdb
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+    show-sql: false
+  flyway:
+    enabled: true
+
+app:
+  security:
+    enabled: false
+  kafka:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.cityflow: INFO
+    org.testcontainers: INFO
+    org.hibernate: WARN

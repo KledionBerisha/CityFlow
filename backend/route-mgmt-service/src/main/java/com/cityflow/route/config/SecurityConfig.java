@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.GrantedAuthority;
@@ -31,8 +31,20 @@ public class SecurityConfig {
         }
 
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                .anyRequest().authenticated())
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/routes/**").hasAuthority("ROLE_routes_read")
+                        .requestMatchers(HttpMethod.POST, "/routes/**").hasAuthority("ROLE_routes_write")
+                        .requestMatchers(HttpMethod.PUT, "/routes/**").hasAuthority("ROLE_routes_write")
+                        .requestMatchers(HttpMethod.DELETE, "/routes/**").hasAuthority("ROLE_routes_write")
+                        .requestMatchers(HttpMethod.GET, "/routes/*/stops/**").hasAuthority("ROLE_routes_read")
+                        .requestMatchers(HttpMethod.PUT, "/routes/*/stops/**").hasAuthority("ROLE_routes_write")
+                        .requestMatchers(HttpMethod.GET, "/routes/*/schedules/**").hasAuthority("ROLE_routes_read")
+                        .requestMatchers(HttpMethod.PUT, "/routes/*/schedules/**").hasAuthority("ROLE_routes_write")
+                        .requestMatchers(HttpMethod.GET, "/stops/**").hasAuthority("ROLE_stops_read")
+                        .requestMatchers(HttpMethod.POST, "/stops/**").hasAuthority("ROLE_stops_write")
+                        .requestMatchers(HttpMethod.PUT, "/stops/**").hasAuthority("ROLE_stops_write")
+                        .requestMatchers(HttpMethod.DELETE, "/stops/**").hasAuthority("ROLE_stops_write")
+                        .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();

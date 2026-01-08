@@ -1,0 +1,28 @@
+{
+  "realm": "cityflow",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "routes_read", "composite": false, "clientRole": false },
+      { "name": "routes_write", "composite": false, "clientRole": false },
+      { "name": "stops_read", "composite": false, "clientRole": false },
+      { "name": "stops_write", "composite": false, "clientRole": false }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "cityflow-frontend",
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "route-mgmt-service",
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["roles"]
+    }
+  ]
+}

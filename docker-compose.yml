@@ -24,6 +24,13 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.3
+    depends_on:
+      - kafka
+    entrypoint: /bin/bash -c "sleep 8 && kafka-topics --create --if-not-exists --topic route.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 || true"
 
   postgres:
     image: postgres:15
@@ -45,7 +52,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.5
-    command: start-dev --http-port 8080
+    command: start-dev --http-port 8080 --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -53,6 +60,8 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+    volumes:
+      - ./infrastructure/keycloak/realm-cityflow.json:/opt/keycloak/data/import/realm-cityflow.json:ro
 
   route-mgmt-service:
     build:
@@ -64,10 +73,15 @@ services:
       SERVER_PORT: 8081
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
     ports:
       - "8081:8081"
     depends_on:
       - postgres
+      - kafka
+      - kafka-init
+      - keycloak
 
 volumes:
   pgdata:

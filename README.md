@@ -48,11 +48,21 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
   - `GET /routes/{id}/stops` (list ordered stops for a route)
   - `PUT /routes/{id}/schedules` (replace schedules for a route)
   - `GET /routes/{id}/schedules` (list schedules for a route)
+- Pagination: max page size capped at 100 for list endpoints
 
 ### Security
 - Resource server with JWT (Keycloak)
 - Default issuer URI: `http://localhost:8080/realms/cityflow` (override with `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`)
 - Disable auth (tests/dev only): set `APP_SECURITY_ENABLED=false`
+- Roles expected (Keycloak `realm_access.roles`):
+  - `routes_read`: GET routes/stops
+  - `routes_write`: POST/PUT/DELETE routes, route-stops, schedules
+  - `stops_read`: GET stops
+  - `stops_write`: POST/PUT/DELETE stops
+
+### Observability
+- Actuator health/info exposed (`/actuator/health`, `/actuator/info`)
+- Request logging with per-request `requestId` MDC
 - Schema (Flyway-managed):
   - routes, stops, route_stops, schedules, buses, users
   - Route fields map to DB columns: `route_code`, `route_name`, `is_active`
