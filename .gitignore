@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node/React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+
+# Java/Gradle/Maven
+.gradle/
+build/
+out/
+target/
+*.class
+*.log
+*.ctxt
+*.jar
+*.war
+*.ear
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.~py
+.env
+.venv
+.venv*/
+.env*/
+.eggs/
+*.egg-info/
+
+# Coverage / reports
+coverage/
+*.lcov
+reports/
+
+# Docker
+**/.env.local
+**/.env.dev
+**/.env.test
+**/.env.prod
