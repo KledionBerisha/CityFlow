@@ -1,8 +1,8 @@
 package com.cityflow.route.web;
 
-import com.cityflow.route.dto.RouteRequest;
-import com.cityflow.route.dto.RouteResponse;
-import com.cityflow.route.service.RouteService;
+import com.cityflow.route.dto.StopRequest;
+import com.cityflow.route.dto.StopResponse;
+import com.cityflow.route.service.StopService;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -18,28 +18,28 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/routes")
-public class RouteController {
+@RequestMapping("/stops")
+public class StopController {
 
-    private final RouteService service;
+    private final StopService stopService;
 
-    public RouteController(RouteService service) {
-        this.service = service;
+    public StopController(StopService stopService) {
+        this.stopService = stopService;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public RouteResponse create(@Valid @RequestBody RouteRequest request) {
-        return service.create(request);
+    public StopResponse create(@Valid @RequestBody StopRequest request) {
+        return stopService.create(request);
     }
 
     @GetMapping
-    public Page<RouteResponse> list(@PageableDefault(size = 20, sort = "code") Pageable pageable) {
-        return service.list(pageable);
+    public Page<StopResponse> list(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        return stopService.list(pageable);
     }
 
     @GetMapping("/{id}")
-    public RouteResponse get(@PathVariable("id") UUID id) {
-        return service.get(id);
+    public StopResponse get(@PathVariable("id") UUID id) {
+        return stopService.get(id);
     }
 }

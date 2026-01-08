@@ -29,7 +29,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
 ## Quick start (dev)
 1) `docker compose up -d`
    - Kafka brokers: `localhost:9093`
-   - Postgres: `localhost:5432` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
+   - Postgres: `localhost:5433` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
    - MongoDB: `localhost:27017`
    - Keycloak: `http://localhost:8080` (admin/admin)
    - Kafka UI: `http://localhost:8081`
@@ -42,6 +42,10 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
   - `POST /routes` (create route: code, name, active)
   - `GET /routes` (list)
   - `GET /routes/{id}` (fetch by UUID)
+  - `POST /stops` (create stop: code?, name, lat, lon, terminal, active)
+  - `GET /stops` / `GET /stops/{id}` (list/fetch stops)
+  - `PUT /routes/{id}/stops` (replace ordered stops for a route; enforces unique sequence and stop)
+  - `GET /routes/{id}/stops` (list ordered stops for a route)
 - Schema (Flyway-managed):
   - routes, stops, route_stops, schedules, buses, users
   - Route fields map to DB columns: `route_code`, `route_name`, `is_active`

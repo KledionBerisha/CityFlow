@@ -6,8 +6,12 @@ import com.cityflow.route.model.Route;
 import com.cityflow.route.repository.RouteRepository;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class RouteService {
@@ -20,26 +24,33 @@ public class RouteService {
 
     @Transactional
     public RouteResponse create(RouteRequest req) {
-        if (repository.existsByCode(req.getCode())) {
-            throw new IllegalArgumentException("Route code already exists");
+        String code = safeTrim(req.getCode());
+        String name = safeTrim(req.getName());
+
+        if (code.isEmpty() || name.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Route code and name are required");
+        }
+
+        if (repository.existsByCode(code)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Route code already exists");
         }
         Route route = new Route();
-        route.setCode(req.getCode());
-        route.setName(req.getName());
+        route.setCode(code);
+        route.setName(name);
         route.setActive(req.isActive());
         Route saved = repository.save(route);
         return toDto(saved);
     }
 
     @Transactional(readOnly = true)
-    public List<RouteResponse> list() {
-        return repository.findAll().stream().map(this::toDto).toList();
+    public Page<RouteResponse> list(Pageable pageable) {
+        return repository.findAll(pageable).map(this::toDto);
     }
 
     @Transactional(readOnly = true)
     public RouteResponse get(UUID id) {
         Route r = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Route not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Route not found"));
         return toDto(r);
     }
 
@@ -50,5 +61,9 @@ public class RouteService {
         dto.setName(r.getName());
         dto.setActive(r.isActive());
         return dto;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
     }
 }

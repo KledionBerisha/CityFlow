@@ -1,4 +1,14 @@
+#
+# Multi-stage build: compile with Maven, then run on slim JRE
+#
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+COPY pom.xml .
+RUN mvn -q -e -B -DskipTests dependency:go-offline
+COPY src ./src
+RUN mvn -q -e -B -DskipTests clean package
+
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY target/route-mgmt-service-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /workspace/target/route-mgmt-service-0.0.1-SNAPSHOT.jar app.jar
 ENTRYPOINT ["java","-jar","/app/app.jar"]

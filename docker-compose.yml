@@ -32,7 +32,7 @@ services:
       POSTGRES_PASSWORD: kledion123
       POSTGRES_DB: cityflow
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -51,6 +51,19 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
     ports:
       - "8080:8080"
+    depends_on:
+      - postgres
+
+  route-mgmt-service:
+    build:
+      context: ./backend/route-mgmt-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cityflow
+      SPRING_DATASOURCE_USERNAME: kledionberisha
+      SPRING_DATASOURCE_PASSWORD: kledion123
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
     depends_on:
       - postgres
 

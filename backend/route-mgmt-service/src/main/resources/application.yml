@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/cityflow
+    url: jdbc:postgresql://localhost:5433/cityflow
     username: kledionberisha
     password: kledion123
   jpa:
