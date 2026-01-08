@@ -48,6 +48,11 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
   - `GET /routes/{id}/stops` (list ordered stops for a route)
   - `PUT /routes/{id}/schedules` (replace schedules for a route)
   - `GET /routes/{id}/schedules` (list schedules for a route)
+
+### Security
+- Resource server with JWT (Keycloak)
+- Default issuer URI: `http://localhost:8080/realms/cityflow` (override with `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`)
+- Disable auth (tests/dev only): set `APP_SECURITY_ENABLED=false`
 - Schema (Flyway-managed):
   - routes, stops, route_stops, schedules, buses, users
   - Route fields map to DB columns: `route_code`, `route_name`, `is_active`
