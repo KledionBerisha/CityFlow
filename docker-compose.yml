@@ -28,8 +28,8 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: cityflow
-      POSTGRES_PASSWORD: cityflow
+      POSTGRES_USER: kledionberisha
+      POSTGRES_PASSWORD: kledion123
       POSTGRES_DB: cityflow
     ports:
       - "5432:5432"
