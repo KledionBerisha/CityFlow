@@ -46,6 +46,8 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
   - `GET /stops` / `GET /stops/{id}` (list/fetch stops)
   - `PUT /routes/{id}/stops` (replace ordered stops for a route; enforces unique sequence and stop)
   - `GET /routes/{id}/stops` (list ordered stops for a route)
+  - `PUT /routes/{id}/schedules` (replace schedules for a route)
+  - `GET /routes/{id}/schedules` (list schedules for a route)
 - Schema (Flyway-managed):
   - routes, stops, route_stops, schedules, buses, users
   - Route fields map to DB columns: `route_code`, `route_name`, `is_active`

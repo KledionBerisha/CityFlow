@@ -1,6 +1,6 @@
 package com.cityflow.route;
 
-import com.cityflow.route.dto.RouteRequest;
+import com.cityflow.route.dto.StopRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.math.BigDecimal;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -23,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class RouteControllerIntegrationTest {
+class StopControllerIntegrationTest {
 
     static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:15-alpine")
@@ -60,51 +62,60 @@ class RouteControllerIntegrationTest {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Test
-    void createAndListRoutes_withPaginationAndValidation() throws Exception {
-        RouteRequest req = new RouteRequest();
-        req.setCode("R1");
-        req.setName("Main Loop");
+    private StopRequest stopReq(String code, String name) {
+        StopRequest req = new StopRequest();
+        req.setCode(code);
+        req.setName(name);
+        req.setLatitude(BigDecimal.valueOf(41.3275));
+        req.setLongitude(BigDecimal.valueOf(19.8187));
+        req.setTerminal(false);
         req.setActive(true);
-
-        mockMvc.perform(post("/routes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.code").value("R1"))
-                .andExpect(jsonPath("$.id").exists());
-
-        mockMvc.perform(get("/routes?page=0&size=5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].code").value("R1"));
+        return req;
     }
 
     @Test
-    void duplicateRouteCode_returnsConflict() throws Exception {
-        RouteRequest req = new RouteRequest();
-        req.setCode("R2");
-        req.setName("City Center");
+    void createListAndFetchStop() throws Exception {
+        StopRequest req = stopReq("S1", "Central");
 
-        mockMvc.perform(post("/routes")
+        String location = mockMvc.perform(post("/stops")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("S1"))
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        mockMvc.perform(get("/stops?page=0&size=5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].code").value("S1"));
+    }
+
+    @Test
+    void duplicateCodeReturnsConflict() throws Exception {
+        StopRequest req = stopReq("S2", "Square");
+
+        mockMvc.perform(post("/stops")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/routes")
+        mockMvc.perform(post("/stops")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    void blankPayload_returnsBadRequestWithErrors() throws Exception {
-        mockMvc.perform(post("/routes")
+    void invalidLatLonReturnsBadRequest() throws Exception {
+        StopRequest req = stopReq("S3", "BadCoords");
+        req.setLatitude(BigDecimal.valueOf(200));
+
+        mockMvc.perform(post("/stops")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"code":"   ","name":""}
-                                """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Validation failed"));
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
     }
 }
