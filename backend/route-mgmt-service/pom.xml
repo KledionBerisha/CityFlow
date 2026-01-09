@@ -10,7 +10,7 @@
   <properties>
     <java.version>17</java.version>
     <spring-boot.version>3.2.2</spring-boot.version>
-    <testcontainers.version>1.19.3</testcontainers.version>
+    <testcontainers.version>1.19.8</testcontainers.version>
     <maven.compiler.release>17</maven.compiler.release>
   </properties>
 
@@ -65,17 +65,26 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- H2 Database for testing (no Docker required) -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Testcontainers (optional, only if Docker is available) -->
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>${testcontainers.version}</version>
       <scope>test</scope>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>postgresql</artifactId>
       <version>${testcontainers.version}</version>
       <scope>test</scope>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 

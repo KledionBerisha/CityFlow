@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cityflow}
-    username: ${SPRING_DATASOURCE_USERNAME:cityflow}
-    password: ${SPRING_DATASOURCE_PASSWORD:cityflow}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/cityflow}
+    username: ${SPRING_DATASOURCE_USERNAME:kledionberisha}
+    password: ${SPRING_DATASOURCE_PASSWORD:kledion123}
   jpa:
     hibernate:
       ddl-auto: validate
