@@ -28,29 +28,20 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
 
 ## Quick start (dev)
 1) `docker compose up -d`
-   - **API Gateway**: `http://localhost:8000` ⭐ Main entry point
+   - **API Gateway**: `http://localhost:8000` ⭐ Main entry point for all APIs
+   - **Route Service**: `http://localhost:8081`
+   - **Bus Ingestion Service**: `http://localhost:8082`
+   - **Keycloak**: `http://localhost:8080` (admin/admin)
    - **Kafka brokers**: `localhost:9093`
    - **Postgres**: `localhost:5433` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
    - **MongoDB**: `localhost:27017`
    - **Redis**: `localhost:6379`
-   - **Keycloak**: `http://localhost:8080` (admin/admin)
-   - **Route Service**: `http://localhost:8081`
-   - **Bus Ingestion Service**: `http://localhost:8082`
-   - **Traffic Ingestion Service**: `http://localhost:8083`
-   - **Analytics Service**: `http://localhost:8084`
-   - **Notification Service**: `http://localhost:8085`
-   - **Incident Detection Service**: `http://localhost:8086`
 
-2) Test endpoints:
+2) Test the system:
    ```bash
-   curl http://localhost:8000/api/routes
    curl http://localhost:8000/api/buses
    curl http://localhost:8000/api/bus-locations/current
-   curl http://localhost:8000/api/sensors
-   curl http://localhost:8000/api/traffic/current
-   curl http://localhost:8000/api/analytics/city
-   curl http://localhost:8000/api/notifications/recent
-   curl http://localhost:8000/api/incidents/active
+   curl http://localhost:8000/api/routes
    ```
 
 ## Services
@@ -149,91 +140,11 @@ See detailed documentation: [backend/bus-ingestion-service/README.md](backend/bu
 
 ---
 
-### Traffic Ingestion Service 🚦 NEW
-- **Location**: `backend/traffic-ingestion-service`
-- **Port**: `8083`
-- **Technology**: Spring Boot WebFlux (Reactive), MongoDB, Redis, Kafka
-- **Purpose**: Real-time traffic monitoring from sensors and traffic data simulation
-
-#### Features
-- ✅ Traffic sensor management (CRUD)
-- ✅ Real-time traffic data collection
-- ✅ Built-in traffic simulator for development
-- ✅ Redis caching for fast queries
-- ✅ MongoDB for historical data storage
-- ✅ Kafka event streaming
-- ✅ Congestion level detection (5 levels)
-
-#### Key Endpoints
-- `POST /sensors` - Register new traffic sensor
-- `GET /sensors` - List all sensors
-- `GET /sensors/{id}` - Get sensor details
-- `GET /sensors/status/{status}` - Filter by status (ACTIVE/INACTIVE/MAINTENANCE/ERROR/OFFLINE)
-- `PATCH /sensors/{id}/status` - Update sensor status
-- `GET /traffic/current` - Get all current traffic readings (from cache)
-- `GET /traffic/current/{sensorId}` - Get current reading for specific sensor
-- `GET /traffic/history/{sensorId}` - Get historical traffic data
-- `GET /traffic/road-segment/{roadSegmentId}` - Get traffic for road segment
-- `GET /traffic/recent?minutes=5` - Get recent traffic updates
-- `GET /traffic/congestion/{level}` - Filter by congestion (FREE_FLOW/LIGHT/MODERATE/HEAVY/SEVERE)
-- `GET /traffic/incidents` - Get readings with detected incidents
-
-#### Traffic Simulator
-The service includes a built-in traffic simulator that automatically:
-- Generates realistic traffic readings for all `ACTIVE` sensors
-- Updates data every 10 seconds (configurable)
-- Simulates peak hours (7-9 AM, 5-7 PM) with heavier congestion
-- Varies by time of day (light traffic at night)
-- Stores in MongoDB and caches in Redis
-- Publishes events to Kafka topic: `traffic.reading.events`
-
-On startup, 8 sample sensors are created at various city locations.
-
-#### Kafka Events
-**Topics:**
-- `traffic.reading.events` - Real-time traffic readings (5 partitions)
-- `sensor.status.events` - Sensor status changes (3 partitions)
-
-#### Traffic Metrics
-Each reading includes:
-- Average speed (km/h)
-- Vehicle count
-- Road occupancy (%)
-- Congestion level (5 levels)
-- Queue length
-- Environmental data (temperature, weather)
-- Incident detection flag
-
-#### Configuration
-```yaml
-app:
-  simulator:
-    enabled: true      # Traffic simulation
-    interval-ms: 10000 # Update frequency (10s)
-  redis:
-    ttl-seconds: 300   # Cache TTL (5 min)
-```
-
-#### Security
-- OAuth2/JWT (Keycloak)
-- Roles: `traffic_read`, `traffic_write`
-- Dev mode: Set `APP_SECURITY_ENABLED=false`
-
-See detailed documentation: [backend/traffic-ingestion-service/README.md](backend/traffic-ingestion-service/README.md)
-
----
-
-### API Gateway ⭐
+### API Gateway ⭐ NEW
 - **Location**: `backend/api-gateway`
 - **Port**: `8000`
 - **Technology**: Spring Cloud Gateway (Reactive), Redis
 - **Purpose**: Unified API entry point with routing, security, and rate limiting
-
-#### Routes
-All API requests go through the gateway:
-- `/api/routes/*`, `/api/stops/*` → Route Management Service (8081)
-- `/api/buses/*`, `/api/bus-locations/*` → Bus Ingestion Service (8082)
-- `/api/sensors/*`, `/api/traffic/*` → Traffic Ingestion Service (8083)
 
 #### Features
 - ✅ Smart routing to microservices
@@ -241,145 +152,41 @@ All API requests go through the gateway:
 - ✅ CORS support for frontend
 - ✅ OAuth2/JWT authentication (Keycloak)
 - ✅ Request correlation IDs and logging
+- ✅ Health checks and route inspection
+
+#### API Routes
+All requests go through `http://localhost:8000`:
+- `/api/buses/*` → Bus Ingestion Service (8082)
+- `/api/bus-locations/*` → Bus Ingestion Service (8082)
+- `/api/routes/*` → Route Management Service (8081)
+- `/api/stops/*` → Route Management Service (8081)
+
+#### Rate Limits
+- `/api/buses/*`: 10 requests/sec per IP
+- `/api/bus-locations/*`: 20 requests/sec per IP
+- `/api/routes/*`: 10 requests/sec per IP
+
+#### Example Usage
+```bash
+# Get all buses through gateway
+curl http://localhost:8000/api/buses
+
+# Get real-time locations
+curl http://localhost:8000/api/bus-locations/current
+
+# Get routes
+curl http://localhost:8000/api/routes
+
+# Health check
+curl http://localhost:8000/actuator/health
+
+# View configured routes
+curl http://localhost:8000/actuator/gateway/routes
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Public paths (no auth required): `/actuator/health`, `/actuator/info`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
 
 See detailed documentation: [backend/api-gateway/README.md](backend/api-gateway/README.md)
-
----
-
-### Analytics Service 📊 NEW
-- **Location**: `backend/analytics-service`
-- **Port**: `8084`
-- **Technology**: Spring Boot WebFlux (Reactive), Redis, Kafka Consumer
-- **Purpose**: Real-time data aggregation and analytics from traffic and bus streams
-
-#### Features
-- ✅ Consumes events from traffic and bus services (Kafka)
-- ✅ Real-time data aggregation and processing
-- ✅ City-wide metrics calculation
-- ✅ Road segment-level analytics
-- ✅ Traffic flow scoring (0-100)
-- ✅ Congestion analysis
-- ✅ Redis caching for fast analytics queries
-
-#### Key Endpoints
-- `GET /analytics/city` - Get city-wide metrics (overall traffic score, congestion, bus performance)
-- `GET /analytics/segments` - Get all road segment metrics
-- `GET /analytics/segments/{roadSegmentId}` - Get specific road segment analytics
-
-#### Aggregated Metrics
-
-**City-Wide:**
-- Total active buses and sensors
-- City average speed
-- Congestion level distribution
-- Bus on-time performance
-- Active incidents count
-- City traffic score (0-100)
-
-**Road Segment:**
-- Average speed and vehicle count
-- Road occupancy and congestion level
-- Queue length
-- Active buses on segment
-- Traffic flow score
-
-#### Data Sources
-Consumes Kafka topics:
-- `traffic.reading.events` - Real-time traffic data
-- `bus.location.events` - Real-time bus locations
-
-#### Configuration
-```yaml
-app:
-  kafka:
-    consumer:
-      group-id: analytics-service
-```
-
-#### Security
-- OAuth2/JWT (Keycloak)
-- Roles: `analytics_read`
-- Dev mode: Set `APP_SECURITY_ENABLED=false`
-
-See detailed documentation: [backend/analytics-service/README.md](backend/analytics-service/README.md)
-
----
-
-### Incident Detection Service 🚨 NEW
-- **Location**: `backend/incident-detection-service`
-- **Port**: `8086`
-- **Technology**: Spring Boot WebFlux (Reactive), MongoDB, Kafka
-- **Purpose**: Real-time incident detection from traffic and bus events
-
-#### Features
-- ✅ Automatic incident detection from traffic patterns
-- ✅ Multiple detection algorithms (speed drops, congestion, sensor flags)
-- ✅ Bus abnormality detection (breakdowns, sudden stops)
-- ✅ Incident classification and severity scoring
-- ✅ MongoDB storage with geospatial indexing
-- ✅ Kafka event streaming for downstream consumers
-
-#### Key Endpoints
-- `GET /incidents` - Get all incidents
-- `GET /incidents/active` - Get active incidents only
-- `GET /incidents/recent?hoursBack=24` - Get recent incidents
-- `GET /incidents/status/{status}` - Filter by status (DETECTED/CONFIRMED/RESOLVED)
-- `GET /incidents/type/{type}` - Filter by type (ACCIDENT/CONGESTION/BUS_BREAKDOWN)
-- `GET /incidents/severity/{severity}` - Filter by severity (LOW/MEDIUM/HIGH/CRITICAL)
-- `PATCH /incidents/{id}/status` - Update incident status
-- `DELETE /incidents/{id}` - Delete incident (false positive)
-
-#### Detection Algorithms
-
-**1. Sudden Speed Drop (Accident Detection)**
-- Monitors rolling 5-reading average
-- Triggers: Speed drop >50%, current <20 km/h, previous >40 km/h
-- Confidence: 60-95% based on severity
-
-**2. Severe Congestion**
-- Triggers: SEVERE congestion + occupancy >90%
-- Auto-calculates estimated delay
-
-**3. Sensor Incident Flag**
-- Direct sensor incident reporting
-- High confidence (95%)
-
-**4. Bus Abnormality**
-- Detects sudden stops (30→5 km/h in <30s)
-- Medium severity incidents
-
-#### Kafka Events
-
-**Topics Consumed:**
-- `traffic.reading.events` - Real-time traffic data (3 consumers)
-- `bus.location.events` - Bus location updates (2 consumers)
-
-**Topic Published:**
-- `incident.events` - Detected incident notifications (3 partitions)
-
-#### Incident Types
-- **ACCIDENT** - Traffic accident detected from sudden speed drops
-- **SEVERE_CONGESTION** - Abnormal congestion patterns
-- **ROAD_CLOSURE** - Road blocked/closed
-- **BUS_BREAKDOWN** - Bus malfunction or sudden stop
-- **SENSOR_MALFUNCTION** - Sensor offline/error
-- **WEATHER_RELATED** - Weather-induced incidents
-- **CONSTRUCTION** - Road construction/maintenance
-- **SPECIAL_EVENT** - Event causing traffic impact
-
-#### Configuration
-```yaml
-app:
-  kafka:
-    topics:
-      traffic-reading: traffic.reading.events
-      bus-location: bus.location.events
-      incident-events: incident.events
-```
-
-#### Security
-- OAuth2/JWT (Keycloak)
-- Roles: `incident_read`, `incident_write`
-- Dev mode: Set `APP_SECURITY_ENABLED=false`
-
-See detailed documentation: [backend/incident-detection-service/README.md](backend/incident-detection-service/README.md)
