@@ -56,6 +56,18 @@ spring:
                 redis-rate-limiter.replenishRate: 30
                 redis-rate-limiter.burstCapacity: 60
 
+        # Notification Service Routes
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+
       globalcors:
         corsConfigurations:
           '[/**]':

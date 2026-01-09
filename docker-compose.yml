@@ -155,6 +155,27 @@ services:
       - kafka-init
       - keycloak
 
+  notification-service:
+    build:
+      context: ./backend/notification-service
+    environment:
+      SERVER_PORT: 8085
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cityflow
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
+    ports:
+      - "8085:8085"
+    depends_on:
+      - mongo
+      - redis
+      - kafka
+      - kafka-init
+      - keycloak
+
   api-gateway:
     build:
       context: ./backend/api-gateway
@@ -164,6 +185,7 @@ services:
       BUS_SERVICE_URL: http://bus-ingestion-service:8082
       TRAFFIC_SERVICE_URL: http://traffic-ingestion-service:8083
       ANALYTICS_SERVICE_URL: http://analytics-service:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
       OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
@@ -175,6 +197,7 @@ services:
       - bus-ingestion-service
       - traffic-ingestion-service
       - analytics-service
+      - notification-service
       - redis
       - keycloak
 

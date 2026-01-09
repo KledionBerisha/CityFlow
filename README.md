@@ -38,6 +38,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    - **Bus Ingestion Service**: `http://localhost:8082`
    - **Traffic Ingestion Service**: `http://localhost:8083`
    - **Analytics Service**: `http://localhost:8084`
+   - **Notification Service**: `http://localhost:8085`
 
 2) Test endpoints:
    ```bash
@@ -47,6 +48,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    curl http://localhost:8000/api/sensors
    curl http://localhost:8000/api/traffic/current
    curl http://localhost:8000/api/analytics/city
+   curl http://localhost:8000/api/notifications/recent
    ```
 
 ## Services
