@@ -59,4 +59,12 @@ public class BusController {
         log.info("Updating bus {} status to {}", id, status);
         return busService.updateStatus(id, status);
     }
+
+    @PutMapping("/{id}/route")
+    public Mono<BusResponse> updateRoute(
+            @PathVariable String id,
+            @RequestParam(required = false) UUID routeId) {
+        log.info("Updating bus {} route to {}", id, routeId);
+        return busService.updateRoute(id, routeId);
+    }
 }
