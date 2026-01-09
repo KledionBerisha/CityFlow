@@ -70,7 +70,7 @@ public class DataLakeIngestionJob {
     private static StreamingQuery ingestTrafficEvents(
             SparkSession spark,
             ConfigLoader config,
-            DeltaLakeWriter deltaWriter) {
+            DeltaLakeWriter deltaWriter) throws java.util.concurrent.TimeoutException {
         
         logger.info("Starting traffic events ingestion...");
         
@@ -127,7 +127,7 @@ public class DataLakeIngestionJob {
     private static StreamingQuery ingestBusEvents(
             SparkSession spark,
             ConfigLoader config,
-            DeltaLakeWriter deltaWriter) {
+            DeltaLakeWriter deltaWriter) throws java.util.concurrent.TimeoutException {
         
         logger.info("Starting bus events ingestion...");
         
@@ -184,7 +184,7 @@ public class DataLakeIngestionJob {
     private static StreamingQuery ingestIncidentEvents(
             SparkSession spark,
             ConfigLoader config,
-            DeltaLakeWriter deltaWriter) {
+            DeltaLakeWriter deltaWriter) throws java.util.concurrent.TimeoutException {
         
         logger.info("Starting incident events ingestion...");
         

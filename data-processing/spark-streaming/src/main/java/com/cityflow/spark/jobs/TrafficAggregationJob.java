@@ -230,7 +230,7 @@ public class TrafficAggregationJob {
     /**
      * Write aggregated data to PostgreSQL
      */
-    private static void writeToPostgreSQL(Dataset<Row> aggregated, ConfigLoader config) {
+    private static void writeToPostgreSQL(Dataset<Row> aggregated, ConfigLoader config) throws java.util.concurrent.TimeoutException {
         logger.info("Writing to PostgreSQL...");
         
         aggregated

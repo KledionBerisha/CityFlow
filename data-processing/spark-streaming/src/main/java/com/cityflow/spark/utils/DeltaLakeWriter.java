@@ -37,37 +37,31 @@ public class DeltaLakeWriter implements Serializable {
             String checkpointPath,
             String queryName,
             String triggerInterval,
-            String... partitionColumns) {
+            String... partitionColumns) throws java.util.concurrent.TimeoutException {
         
         logger.info("Starting Delta Lake streaming write to: {}", deltaPath);
         logger.info("Checkpoint location: {}", checkpointPath);
         logger.info("Query name: {}", queryName);
         
-        try {
-            var writeStream = df.writeStream()
-                .format("delta")
-                .outputMode("append")
-                .option("checkpointLocation", checkpointPath)
-                .option("mergeSchema", "true")
-                .trigger(Trigger.ProcessingTime(triggerInterval));
-            
-            // Add partitioning if specified
-            if (partitionColumns != null && partitionColumns.length > 0) {
-                logger.info("Partitioning by: {}", String.join(", ", partitionColumns));
-                writeStream = writeStream.partitionBy(partitionColumns);
-            }
-            
-            StreamingQuery query = writeStream
-                .queryName(queryName)
-                .start(deltaPath);
-            
-            logger.info("Streaming query started: {}", query.name());
-            return query;
-            
-        } catch (TimeoutException e) {
-            logger.error("Timeout starting streaming query", e);
-            throw new RuntimeException("Failed to start streaming query", e);
+        var writeStream = df.writeStream()
+            .format("delta")
+            .outputMode("append")
+            .option("checkpointLocation", checkpointPath)
+            .option("mergeSchema", "true")
+            .trigger(Trigger.ProcessingTime(triggerInterval));
+        
+        // Add partitioning if specified
+        if (partitionColumns != null && partitionColumns.length > 0) {
+            logger.info("Partitioning by: {}", String.join(", ", partitionColumns));
+            writeStream = writeStream.partitionBy(partitionColumns);
         }
+        
+        StreamingQuery query = writeStream
+            .queryName(queryName)
+            .start(deltaPath);
+        
+        logger.info("Streaming query started: {}", query.name());
+        return query;
     }
     
     /**

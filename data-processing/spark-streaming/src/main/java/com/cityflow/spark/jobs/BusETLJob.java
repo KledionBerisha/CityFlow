@@ -146,7 +146,7 @@ public class BusETLJob {
             .withColumn("speed_anomaly",
                 when(
                     col("calculated_speed_kmh").gt(100).or(
-                        col("calculated_speed_kmh").minus(col("prev_speed")).abs().gt(50)
+                        abs(col("calculated_speed_kmh").minus(col("prev_speed"))).gt(50)
                     ),
                     true
                 ).otherwise(false)
@@ -186,7 +186,7 @@ public class BusETLJob {
     /**
      * Write enriched bus data to MongoDB
      */
-    private static StreamingQuery writeToMongoDB(Dataset<Row> enriched, ConfigLoader config) {
+    private static StreamingQuery writeToMongoDB(Dataset<Row> enriched, ConfigLoader config) throws java.util.concurrent.TimeoutException {
         logger.info("Writing to MongoDB...");
         
         return enriched

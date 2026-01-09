@@ -152,7 +152,7 @@ public class RealTimeAnalyticsJob {
     /**
      * Write KPIs to Redis
      */
-    private static StreamingQuery writeToRedis(Dataset<Row> kpis, ConfigLoader config) {
+    private static StreamingQuery writeToRedis(Dataset<Row> kpis, ConfigLoader config) throws java.util.concurrent.TimeoutException {
         logger.info("Writing KPIs to Redis...");
         
         return kpis

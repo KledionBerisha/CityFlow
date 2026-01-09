@@ -27,7 +27,7 @@
         <confluent.version>7.5.0</confluent.version>
         <delta.version>3.0.0</delta.version>
         <postgresql.version>42.7.1</postgresql.version>
-        <mongodb.version>4.11.1</mongodb.version>
+        <mongodb.version>10.2.1</mongodb.version>
         <redis.version>5.1.0</redis.version>
         <slf4j.version>2.0.9</slf4j.version>
         <jackson.version>2.15.3</jackson.version>
