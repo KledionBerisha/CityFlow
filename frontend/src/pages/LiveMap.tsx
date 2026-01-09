@@ -1,15 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { MapContainer, TileLayer, useMap, GeoJSON } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import DataPanel from '../components/DataPanel'
 import LocationPanel from '../components/LocationPanel'
-import BusMarker from '../components/BusMarker'
-import TrafficMarker from '../components/TrafficMarker'
 import { useMapData } from '../hooks/useMapData'
-import { useBusLocations } from '../hooks/useBusLocations'
-import { useTrafficReadings } from '../hooks/useTrafficReadings'
-import { getRoadTrafficData, RoadTrafficData } from '../services/api'
+import { useRoadOverlays } from '../hooks/useRoadOverlays'
 
 // Fix for default marker icons in React Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -49,82 +45,30 @@ function MapController() {
   return null
 }
 
-// Component to render road overlays with traffic-based colors
+// Component to render road overlays
 function RoadOverlays() {
-  const [roadData, setRoadData] = useState<RoadTrafficData[]>([])
-
-  useEffect(() => {
-    const fetchRoads = async () => {
-      try {
-        const data = await getRoadTrafficData()
-        setRoadData(data)
-      } catch (error) {
-        console.error('Error fetching road traffic data:', error)
-      }
-    }
-
-    fetchRoads()
-    const interval = setInterval(fetchRoads, 10000) // Update every 10 seconds
-    
-    return () => clearInterval(interval)
-  }, [])
-
+  const roadData = useRoadOverlays()
+  
   if (!roadData || roadData.length === 0) {
     return null
   }
-
-  // Style function for roads based on traffic
-  const getRoadStyle = (road: RoadTrafficData) => {
-    let color = '#FFD700' // Default yellow
-    let weight = 4
-
-    switch (road.congestionLevel) {
-      case 'SEVERE':
-        color = '#dc2626' // Red for heavy traffic
-        weight = 6
-        break
-      case 'HIGH':
-        color = '#ea580c' // Orange
-        weight = 5
-        break
-      case 'MODERATE':
-        color = '#eab308' // Yellow
-        weight = 4
-        break
-      case 'LOW':
-        color = '#22c55e' // Green
-        weight = 3
-        break
-      default:
-        color = '#808080' // Gray
-        weight = 3
-    }
-
-    return {
-      color,
-      weight,
-      opacity: 0.9,
-      fillColor: color,
-      fillOpacity: 0.3,
-    }
-  }
-
+  
+  // Style function for roads - yellow outline with gray fill
+  const roadStyle = () => ({
+    color: '#FFD700', // Yellow outline
+    weight: 4,
+    opacity: 1,
+    fillColor: '#808080', // Gray fill
+    fillOpacity: 0.6,
+  })
+  
   return (
     <>
-      {roadData.map((road) => (
+      {roadData.map((road, index) => (
         <GeoJSON
-          key={road.roadId}
-          data={{
-            type: 'Feature',
-            geometry: road.geometry,
-            properties: {
-              name: road.roadName,
-              congestionLevel: road.congestionLevel,
-              averageSpeed: road.averageSpeed,
-              vehicleCount: road.vehicleCount,
-            },
-          }}
-          style={() => getRoadStyle(road)}
+          key={index}
+          data={road}
+          style={roadStyle}
         />
       ))}
     </>
@@ -133,8 +77,6 @@ function RoadOverlays() {
 
 function LiveMap() {
   const { currentTime, vehicleCount, accidents, location } = useMapData()
-  const { busLocations } = useBusLocations()
-  const { trafficReadings } = useTrafficReadings()
 
   return (
     <div className="relative w-full h-full">
@@ -150,16 +92,6 @@ function LiveMap() {
         />
         <MapController />
         <RoadOverlays />
-        
-        {/* Bus Markers */}
-        {busLocations.map((bus) => (
-          <BusMarker key={bus.busId} bus={bus} />
-        ))}
-        
-        {/* Traffic Markers */}
-        {trafficReadings.map((reading) => (
-          <TrafficMarker key={reading.sensorId} reading={reading} />
-        ))}
       </MapContainer>
 
       {/* Data Panels - Top Right */}
