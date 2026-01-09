@@ -28,6 +28,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
 
 ## Quick start (dev)
 1) `docker compose up -d`
+   - **API Gateway**: `http://localhost:8000` ⭐ Main entry point
    - **Kafka brokers**: `localhost:9093`
    - **Postgres**: `localhost:5433` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
    - **MongoDB**: `localhost:27017`
@@ -35,6 +36,16 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    - **Keycloak**: `http://localhost:8080` (admin/admin)
    - **Route Service**: `http://localhost:8081`
    - **Bus Ingestion Service**: `http://localhost:8082`
+   - **Traffic Ingestion Service**: `http://localhost:8083`
+
+2) Test endpoints:
+   ```bash
+   curl http://localhost:8000/api/routes
+   curl http://localhost:8000/api/buses
+   curl http://localhost:8000/api/bus-locations/current
+   curl http://localhost:8000/api/sensors
+   curl http://localhost:8000/api/traffic/current
+   ```
 
 ## Services
 
@@ -129,3 +140,100 @@ app:
 - Dev mode: Set `APP_SECURITY_ENABLED=false`
 
 See detailed documentation: [backend/bus-ingestion-service/README.md](backend/bus-ingestion-service/README.md)
+
+---
+
+### Traffic Ingestion Service 🚦 NEW
+- **Location**: `backend/traffic-ingestion-service`
+- **Port**: `8083`
+- **Technology**: Spring Boot WebFlux (Reactive), MongoDB, Redis, Kafka
+- **Purpose**: Real-time traffic monitoring from sensors and traffic data simulation
+
+#### Features
+- ✅ Traffic sensor management (CRUD)
+- ✅ Real-time traffic data collection
+- ✅ Built-in traffic simulator for development
+- ✅ Redis caching for fast queries
+- ✅ MongoDB for historical data storage
+- ✅ Kafka event streaming
+- ✅ Congestion level detection (5 levels)
+
+#### Key Endpoints
+- `POST /sensors` - Register new traffic sensor
+- `GET /sensors` - List all sensors
+- `GET /sensors/{id}` - Get sensor details
+- `GET /sensors/status/{status}` - Filter by status (ACTIVE/INACTIVE/MAINTENANCE/ERROR/OFFLINE)
+- `PATCH /sensors/{id}/status` - Update sensor status
+- `GET /traffic/current` - Get all current traffic readings (from cache)
+- `GET /traffic/current/{sensorId}` - Get current reading for specific sensor
+- `GET /traffic/history/{sensorId}` - Get historical traffic data
+- `GET /traffic/road-segment/{roadSegmentId}` - Get traffic for road segment
+- `GET /traffic/recent?minutes=5` - Get recent traffic updates
+- `GET /traffic/congestion/{level}` - Filter by congestion (FREE_FLOW/LIGHT/MODERATE/HEAVY/SEVERE)
+- `GET /traffic/incidents` - Get readings with detected incidents
+
+#### Traffic Simulator
+The service includes a built-in traffic simulator that automatically:
+- Generates realistic traffic readings for all `ACTIVE` sensors
+- Updates data every 10 seconds (configurable)
+- Simulates peak hours (7-9 AM, 5-7 PM) with heavier congestion
+- Varies by time of day (light traffic at night)
+- Stores in MongoDB and caches in Redis
+- Publishes events to Kafka topic: `traffic.reading.events`
+
+On startup, 8 sample sensors are created at various city locations.
+
+#### Kafka Events
+**Topics:**
+- `traffic.reading.events` - Real-time traffic readings (5 partitions)
+- `sensor.status.events` - Sensor status changes (3 partitions)
+
+#### Traffic Metrics
+Each reading includes:
+- Average speed (km/h)
+- Vehicle count
+- Road occupancy (%)
+- Congestion level (5 levels)
+- Queue length
+- Environmental data (temperature, weather)
+- Incident detection flag
+
+#### Configuration
+```yaml
+app:
+  simulator:
+    enabled: true      # Traffic simulation
+    interval-ms: 10000 # Update frequency (10s)
+  redis:
+    ttl-seconds: 300   # Cache TTL (5 min)
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Roles: `traffic_read`, `traffic_write`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
+
+See detailed documentation: [backend/traffic-ingestion-service/README.md](backend/traffic-ingestion-service/README.md)
+
+---
+
+### API Gateway ⭐
+- **Location**: `backend/api-gateway`
+- **Port**: `8000`
+- **Technology**: Spring Cloud Gateway (Reactive), Redis
+- **Purpose**: Unified API entry point with routing, security, and rate limiting
+
+#### Routes
+All API requests go through the gateway:
+- `/api/routes/*`, `/api/stops/*` → Route Management Service (8081)
+- `/api/buses/*`, `/api/bus-locations/*` → Bus Ingestion Service (8082)
+- `/api/sensors/*`, `/api/traffic/*` → Traffic Ingestion Service (8083)
+
+#### Features
+- ✅ Smart routing to microservices
+- ✅ Rate limiting (IP-based, Redis-backed)
+- ✅ CORS support for frontend
+- ✅ OAuth2/JWT authentication (Keycloak)
+- ✅ Request correlation IDs and logging
+
+See detailed documentation: [backend/api-gateway/README.md](backend/api-gateway/README.md)

@@ -1,0 +1,72 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: traffic-ingestion-service
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/cityflow}
+      auto-index-creation: true
+
+    # Redis Configuration
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+
+  # Security - OAuth2 Resource Server
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/cityflow}
+
+# Application Configuration
+app:
+  security:
+    enabled: ${APP_SECURITY_ENABLED:true}
+
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      traffic-readings: traffic.reading.events
+      sensor-status: sensor.status.events
+
+  simulator:
+    enabled: ${APP_SIMULATOR_ENABLED:true}
+    interval-ms: ${APP_SIMULATOR_INTERVAL_MS:10000}  # 10 seconds
+
+  redis:
+    ttl-seconds: 300  # 5 minutes cache TTL
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.cityflow.traffic: DEBUG
+    org.springframework.data.mongodb: INFO
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
