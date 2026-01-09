@@ -80,7 +80,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: kledion123
       SERVER_PORT: 8081
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/cityflow
-      APP_SECURITY_ENABLED: "true"
+      APP_SECURITY_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       APP_KAFKA_ENABLED: "true"
     ports:
@@ -182,6 +182,8 @@ services:
     environment:
       SERVER_PORT: 8086
       SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cityflow
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "false"
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -190,6 +192,7 @@ services:
       - "8086:8086"
     depends_on:
       - mongo
+      - redis
       - kafka
       - kafka-init
       - keycloak
