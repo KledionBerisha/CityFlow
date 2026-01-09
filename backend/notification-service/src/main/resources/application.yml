@@ -1,0 +1,68 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: notification-service
+
+  # MongoDB Configuration
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/cityflow}
+      auto-index-creation: true
+
+    # Redis Configuration
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:notification-service}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: latest
+
+  # Security - OAuth2 Resource Server
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/cityflow}
+
+# Application Configuration
+app:
+  security:
+    enabled: ${APP_SECURITY_ENABLED:true}
+
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    consumer:
+      group-id: notification-service
+    topics:
+      traffic-readings: traffic.reading.events
+      bus-locations: bus.location.events
+      sensor-status: sensor.status.events
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.cityflow.notification: DEBUG
+    org.springframework.kafka: INFO
+    org.springframework.messaging: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"

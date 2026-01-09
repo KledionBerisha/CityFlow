@@ -1,0 +1,65 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/cityflow}
+    username: ${SPRING_DATASOURCE_USERNAME:kledionberisha}
+    password: ${SPRING_DATASOURCE_PASSWORD:kledion123}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.lob.non_contextual_creation: true
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/cityflow}
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring:
+        json:
+          add:
+            type:
+              headers: false
+    consumer:
+      group-id: route-mgmt-service
+    listener:
+      ack-mode: batch
+
+logging:
+  level:
+    root: info
+    org.springframework: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  kafka:
+    enabled: true
+    topics:
+      route-events: route.events

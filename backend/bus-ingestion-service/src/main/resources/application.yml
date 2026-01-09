@@ -1,0 +1,67 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: bus-ingestion-service
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/cityflow}
+      auto-index-creation: true
+
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8080/realms/cityflow}
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring:
+        json:
+          add:
+            type:
+              headers: false
+
+logging:
+  level:
+    root: info
+    org.springframework: info
+    com.cityflow: debug
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  security:
+    enabled: ${APP_SECURITY_ENABLED:true}
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      bus-location: bus.location.events
+      bus-status: bus.status.events
+  simulator:
+    enabled: ${APP_SIMULATOR_ENABLED:true}
+    interval-ms: 5000  # Update every 5 seconds
+    speed-kmh: 40      # Average speed in km/h
+    stop-wait-seconds: 30  # Time to wait at each stop in seconds
+  redis:
+    ttl-seconds: 300   # Cache bus positions for 5 minutes
+  route-service:
+    url: ${ROUTE_SERVICE_URL:http://localhost:8081}
