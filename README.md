@@ -28,13 +28,21 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
 
 ## Quick start (dev)
 1) `docker compose up -d`
+   - **API Gateway**: `http://localhost:8000` ⭐ Main entry point for all APIs
+   - **Route Service**: `http://localhost:8081`
+   - **Bus Ingestion Service**: `http://localhost:8082`
+   - **Keycloak**: `http://localhost:8080` (admin/admin)
    - **Kafka brokers**: `localhost:9093`
    - **Postgres**: `localhost:5433` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
    - **MongoDB**: `localhost:27017`
    - **Redis**: `localhost:6379`
-   - **Keycloak**: `http://localhost:8080` (admin/admin)
-   - **Route Service**: `http://localhost:8081`
-   - **Bus Ingestion Service**: `http://localhost:8082`
+
+2) Test the system:
+   ```bash
+   curl http://localhost:8000/api/buses
+   curl http://localhost:8000/api/bus-locations/current
+   curl http://localhost:8000/api/routes
+   ```
 
 ## Services
 
@@ -129,3 +137,56 @@ app:
 - Dev mode: Set `APP_SECURITY_ENABLED=false`
 
 See detailed documentation: [backend/bus-ingestion-service/README.md](backend/bus-ingestion-service/README.md)
+
+---
+
+### API Gateway ⭐ NEW
+- **Location**: `backend/api-gateway`
+- **Port**: `8000`
+- **Technology**: Spring Cloud Gateway (Reactive), Redis
+- **Purpose**: Unified API entry point with routing, security, and rate limiting
+
+#### Features
+- ✅ Smart routing to microservices
+- ✅ Rate limiting (IP-based, Redis-backed)
+- ✅ CORS support for frontend
+- ✅ OAuth2/JWT authentication (Keycloak)
+- ✅ Request correlation IDs and logging
+- ✅ Health checks and route inspection
+
+#### API Routes
+All requests go through `http://localhost:8000`:
+- `/api/buses/*` → Bus Ingestion Service (8082)
+- `/api/bus-locations/*` → Bus Ingestion Service (8082)
+- `/api/routes/*` → Route Management Service (8081)
+- `/api/stops/*` → Route Management Service (8081)
+
+#### Rate Limits
+- `/api/buses/*`: 10 requests/sec per IP
+- `/api/bus-locations/*`: 20 requests/sec per IP
+- `/api/routes/*`: 10 requests/sec per IP
+
+#### Example Usage
+```bash
+# Get all buses through gateway
+curl http://localhost:8000/api/buses
+
+# Get real-time locations
+curl http://localhost:8000/api/bus-locations/current
+
+# Get routes
+curl http://localhost:8000/api/routes
+
+# Health check
+curl http://localhost:8000/actuator/health
+
+# View configured routes
+curl http://localhost:8000/actuator/gateway/routes
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Public paths (no auth required): `/actuator/health`, `/actuator/info`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
+
+See detailed documentation: [backend/api-gateway/README.md](backend/api-gateway/README.md)
