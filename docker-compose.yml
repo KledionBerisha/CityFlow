@@ -114,6 +114,25 @@ services:
       - kafka-init
       - keycloak
 
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    environment:
+      SERVER_PORT: 8000
+      ROUTE_SERVICE_URL: http://route-mgmt-service:8081
+      BUS_SERVICE_URL: http://bus-ingestion-service:8082
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - route-mgmt-service
+      - bus-ingestion-service
+      - redis
+      - keycloak
+
 volumes:
   pgdata:
   mongodata:
