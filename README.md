@@ -28,8 +28,104 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
 
 ## Quick start (dev)
 1) `docker compose up -d`
-   - Kafka brokers: `localhost:9093`
-   - Postgres: `localhost:5432` (user/pass/db: `cityflow`)
-   - MongoDB: `localhost:27017`
-   - Keycloak: `http://localhost:8080` (admin/admin)
-   - Kafka UI: `http://localhost:8081`
+   - **Kafka brokers**: `localhost:9093`
+   - **Postgres**: `localhost:5433` (user/pass: `kledionberisha` / `kledion123`, db: `cityflow`)
+   - **MongoDB**: `localhost:27017`
+   - **Redis**: `localhost:6379`
+   - **Keycloak**: `http://localhost:8080` (admin/admin)
+   - **Route Service**: `http://localhost:8081`
+   - **Bus Ingestion Service**: `http://localhost:8082`
+
+## Services
+
+### Route Management Service
+- Location: `backend/route-mgmt-service`
+- Build/run: `mvn clean package` then `mvn spring-boot:run`
+- DB: Postgres `cityflow` on `localhost:5432` with user/password `kledionberisha` / `kledion123`
+- Endpoints:
+  - `POST /routes` (create route: code, name, active)
+  - `GET /routes` (list)
+  - `GET /routes/{id}` (fetch by UUID)
+  - `POST /stops` (create stop: code?, name, lat, lon, terminal, active)
+  - `GET /stops` / `GET /stops/{id}` (list/fetch stops)
+  - `PUT /routes/{id}/stops` (replace ordered stops for a route; enforces unique sequence and stop)
+  - `GET /routes/{id}/stops` (list ordered stops for a route)
+  - `PUT /routes/{id}/schedules` (replace schedules for a route)
+  - `GET /routes/{id}/schedules` (list schedules for a route)
+- Pagination: max page size capped at 100 for list endpoints
+
+### Security
+- Resource server with JWT (Keycloak)
+- Default issuer URI: `http://localhost:8080/realms/cityflow` (override with `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI`)
+- Disable auth (tests/dev only): set `APP_SECURITY_ENABLED=false`
+- Roles expected (Keycloak `realm_access.roles`):
+  - `routes_read`: GET routes/stops
+  - `routes_write`: POST/PUT/DELETE routes, route-stops, schedules
+  - `stops_read`: GET stops
+  - `stops_write`: POST/PUT/DELETE stops
+
+### Observability
+- Actuator health/info exposed (`/actuator/health`, `/actuator/info`)
+- Request logging with per-request `requestId` MDC
+- Schema (Flyway-managed):
+  - routes, stops, route_stops, schedules, buses, users
+  - Route fields map to DB columns: `route_code`, `route_name`, `is_active`
+
+---
+
+### Bus Ingestion Service ✨ NEW
+- **Location**: `backend/bus-ingestion-service`
+- **Port**: `8082`
+- **Technology**: Spring Boot WebFlux (Reactive), MongoDB, Redis, Kafka
+- **Purpose**: Real-time bus GPS tracking, location simulation, and event streaming
+
+#### Features
+- ✅ Bus fleet management (CRUD)
+- ✅ Real-time GPS location tracking
+- ✅ Built-in GPS simulator for development
+- ✅ Redis caching for fast location queries
+- ✅ MongoDB for historical location storage
+- ✅ Kafka event streaming for downstream consumers
+
+#### Key Endpoints
+- `POST /buses` - Register new bus
+- `GET /buses` - List all buses
+- `GET /buses/route/{routeId}` - Get buses on specific route
+- `PATCH /buses/{id}/status` - Update bus status (ACTIVE/IDLE/MAINTENANCE/OFFLINE)
+- `GET /bus-locations/current` - Get all current bus locations (from cache)
+- `GET /bus-locations/current/{busId}` - Get current location for specific bus
+- `GET /bus-locations/current/route/{routeId}` - Get real-time locations for route
+- `GET /bus-locations/history/{busId}` - Get historical location data
+- `GET /bus-locations/recent` - Poll for recent updates
+
+#### GPS Simulator
+The service includes a built-in GPS simulator that automatically:
+- Generates realistic bus movements for all `ACTIVE` buses
+- Updates positions every 5 seconds (configurable)
+- Stores in MongoDB and caches in Redis
+- Publishes events to Kafka topic: `bus.location.events`
+
+On startup, 5 sample buses are created (3 ACTIVE, 1 IDLE, 1 MAINTENANCE).
+
+#### Kafka Events
+**Topics:**
+- `bus.location.events` - Real-time location updates (5 partitions)
+- `bus.status.events` - Bus status changes (3 partitions)
+
+#### Configuration
+```yaml
+app:
+  simulator:
+    enabled: true      # GPS simulation
+    interval-ms: 5000  # Update frequency
+    speed-kmh: 40      # Average speed
+  redis:
+    ttl-seconds: 300   # Cache TTL (5 min)
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Roles: `bus_read`, `bus_write`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
+
+See detailed documentation: [backend/bus-ingestion-service/README.md](backend/bus-ingestion-service/README.md)

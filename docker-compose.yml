@@ -24,15 +24,30 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.3
+    depends_on:
+      - kafka
+    entrypoint: /bin/bash -c "sleep 8 && kafka-topics --create --if-not-exists --topic route.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic bus.location.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic bus.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 || true"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
 
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: cityflow
-      POSTGRES_PASSWORD: cityflow
+      POSTGRES_USER: kledionberisha
+      POSTGRES_PASSWORD: kledion123
       POSTGRES_DB: cityflow
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -45,7 +60,7 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:22.0.5
-    command: start-dev --http-port 8080
+    command: start-dev --http-port 8080 --import-realm
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -53,7 +68,72 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+    volumes:
+      - ./infrastructure/keycloak/realm-cityflow.json:/opt/keycloak/data/import/realm-cityflow.json:ro
+
+  route-mgmt-service:
+    build:
+      context: ./backend/route-mgmt-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cityflow
+      SPRING_DATASOURCE_USERNAME: kledionberisha
+      SPRING_DATASOURCE_PASSWORD: kledion123
+      SERVER_PORT: 8081
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "true"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - kafka
+      - kafka-init
+      - keycloak
+
+  bus-ingestion-service:
+    build:
+      context: ./backend/bus-ingestion-service
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cityflow
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
+      APP_SIMULATOR_ENABLED: "true"
+      ROUTE_SERVICE_URL: http://route-mgmt-service:8081
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mongo
+      - redis
+      - kafka
+      - kafka-init
+      - keycloak
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    environment:
+      SERVER_PORT: 8000
+      ROUTE_SERVICE_URL: http://route-mgmt-service:8081
+      BUS_SERVICE_URL: http://bus-ingestion-service:8082
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - route-mgmt-service
+      - bus-ingestion-service
+      - redis
+      - keycloak
 
 volumes:
   pgdata:
   mongodata:
+  redisdata:
