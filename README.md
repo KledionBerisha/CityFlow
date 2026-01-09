@@ -37,6 +37,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    - **Route Service**: `http://localhost:8081`
    - **Bus Ingestion Service**: `http://localhost:8082`
    - **Traffic Ingestion Service**: `http://localhost:8083`
+   - **Analytics Service**: `http://localhost:8084`
 
 2) Test endpoints:
    ```bash
@@ -45,6 +46,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    curl http://localhost:8000/api/bus-locations/current
    curl http://localhost:8000/api/sensors
    curl http://localhost:8000/api/traffic/current
+   curl http://localhost:8000/api/analytics/city
    ```
 
 ## Services
@@ -237,3 +239,62 @@ All API requests go through the gateway:
 - ✅ Request correlation IDs and logging
 
 See detailed documentation: [backend/api-gateway/README.md](backend/api-gateway/README.md)
+
+---
+
+### Analytics Service 📊 NEW
+- **Location**: `backend/analytics-service`
+- **Port**: `8084`
+- **Technology**: Spring Boot WebFlux (Reactive), Redis, Kafka Consumer
+- **Purpose**: Real-time data aggregation and analytics from traffic and bus streams
+
+#### Features
+- ✅ Consumes events from traffic and bus services (Kafka)
+- ✅ Real-time data aggregation and processing
+- ✅ City-wide metrics calculation
+- ✅ Road segment-level analytics
+- ✅ Traffic flow scoring (0-100)
+- ✅ Congestion analysis
+- ✅ Redis caching for fast analytics queries
+
+#### Key Endpoints
+- `GET /analytics/city` - Get city-wide metrics (overall traffic score, congestion, bus performance)
+- `GET /analytics/segments` - Get all road segment metrics
+- `GET /analytics/segments/{roadSegmentId}` - Get specific road segment analytics
+
+#### Aggregated Metrics
+
+**City-Wide:**
+- Total active buses and sensors
+- City average speed
+- Congestion level distribution
+- Bus on-time performance
+- Active incidents count
+- City traffic score (0-100)
+
+**Road Segment:**
+- Average speed and vehicle count
+- Road occupancy and congestion level
+- Queue length
+- Active buses on segment
+- Traffic flow score
+
+#### Data Sources
+Consumes Kafka topics:
+- `traffic.reading.events` - Real-time traffic data
+- `bus.location.events` - Real-time bus locations
+
+#### Configuration
+```yaml
+app:
+  kafka:
+    consumer:
+      group-id: analytics-service
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Roles: `analytics_read`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
+
+See detailed documentation: [backend/analytics-service/README.md](backend/analytics-service/README.md)

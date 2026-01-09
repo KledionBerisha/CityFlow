@@ -136,6 +136,25 @@ services:
       - kafka-init
       - keycloak
 
+  analytics-service:
+    build:
+      context: ./backend/analytics-service
+    environment:
+      SERVER_PORT: 8084
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
+    ports:
+      - "8084:8084"
+    depends_on:
+      - redis
+      - kafka
+      - kafka-init
+      - keycloak
+
   api-gateway:
     build:
       context: ./backend/api-gateway
@@ -144,6 +163,7 @@ services:
       ROUTE_SERVICE_URL: http://route-mgmt-service:8081
       BUS_SERVICE_URL: http://bus-ingestion-service:8082
       TRAFFIC_SERVICE_URL: http://traffic-ingestion-service:8083
+      ANALYTICS_SERVICE_URL: http://analytics-service:8084
       OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
@@ -154,6 +174,7 @@ services:
       - route-mgmt-service
       - bus-ingestion-service
       - traffic-ingestion-service
+      - analytics-service
       - redis
       - keycloak
 
