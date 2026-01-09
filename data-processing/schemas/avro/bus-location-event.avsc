@@ -1,0 +1,159 @@
+{
+  "type": "record",
+  "name": "BusLocationEvent",
+  "namespace": "com.cityflow.events.transport",
+  "doc": "Real-time bus GPS location and operational status event",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID v4)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "BUS_LOCATION",
+      "doc": "Event type identifier"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event generation timestamp in epoch milliseconds"
+    },
+    {
+      "name": "busId",
+      "type": "string",
+      "doc": "Unique bus identifier (MongoDB ObjectId)"
+    },
+    {
+      "name": "vehicleId",
+      "type": "string",
+      "doc": "Physical vehicle ID/registration number"
+    },
+    {
+      "name": "busCode",
+      "type": "string",
+      "doc": "Human-readable bus code (e.g., BUS-001)"
+    },
+    {
+      "name": "routeId",
+      "type": "string",
+      "doc": "Route identifier the bus is currently serving"
+    },
+    {
+      "name": "location",
+      "type": {
+        "type": "record",
+        "name": "BusGeoLocation",
+        "fields": [
+          {
+            "name": "latitude",
+            "type": "double",
+            "doc": "Current latitude in decimal degrees"
+          },
+          {
+            "name": "longitude",
+            "type": "double",
+            "doc": "Current longitude in decimal degrees"
+          },
+          {
+            "name": "altitude",
+            "type": ["null", "double"],
+            "default": null,
+            "doc": "Altitude in meters (if available)"
+          },
+          {
+            "name": "accuracy",
+            "type": ["null", "double"],
+            "default": null,
+            "doc": "GPS accuracy in meters"
+          }
+        ]
+      },
+      "doc": "Current geographic position of the bus"
+    },
+    {
+      "name": "speedKmh",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Current speed in kilometers per hour"
+    },
+    {
+      "name": "heading",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Direction of travel in degrees (0-360, North=0)"
+    },
+    {
+      "name": "occupancy",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Number of passengers on board"
+    },
+    {
+      "name": "capacity",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Maximum passenger capacity"
+    },
+    {
+      "name": "operationalStatus",
+      "type": {
+        "type": "enum",
+        "name": "BusOperationalStatus",
+        "symbols": ["IN_SERVICE", "OUT_OF_SERVICE", "DELAYED", "STOPPED", "MAINTENANCE", "EMERGENCY"]
+      },
+      "default": "IN_SERVICE",
+      "doc": "Current operational status of the bus"
+    },
+    {
+      "name": "nextStopId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Identifier of the next scheduled stop"
+    },
+    {
+      "name": "estimatedArrival",
+      "type": [
+        "null",
+        {
+          "type": "long",
+          "logicalType": "timestamp-millis"
+        }
+      ],
+      "default": null,
+      "doc": "Estimated arrival time at next stop in epoch milliseconds"
+    },
+    {
+      "name": "delayMinutes",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Delay in minutes (positive=late, negative=early)"
+    },
+    {
+      "name": "source",
+      "type": {
+        "type": "enum",
+        "name": "LocationSource",
+        "symbols": ["GPS", "SIMULATOR", "MANUAL", "ESTIMATED"]
+      },
+      "default": "GPS",
+      "doc": "Source of location data"
+    },
+    {
+      "name": "metadata",
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": "string"
+        }
+      ],
+      "default": null,
+      "doc": "Additional metadata key-value pairs"
+    }
+  ]
+}
