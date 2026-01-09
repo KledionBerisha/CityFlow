@@ -39,6 +39,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    - **Traffic Ingestion Service**: `http://localhost:8083`
    - **Analytics Service**: `http://localhost:8084`
    - **Notification Service**: `http://localhost:8085`
+   - **Incident Detection Service**: `http://localhost:8086`
 
 2) Test endpoints:
    ```bash
@@ -49,6 +50,7 @@ Ky sistem monitoron në kohë reale trafikun dhe transportin publik në një qyt
    curl http://localhost:8000/api/traffic/current
    curl http://localhost:8000/api/analytics/city
    curl http://localhost:8000/api/notifications/recent
+   curl http://localhost:8000/api/incidents/active
    ```
 
 ## Services
@@ -300,3 +302,84 @@ app:
 - Dev mode: Set `APP_SECURITY_ENABLED=false`
 
 See detailed documentation: [backend/analytics-service/README.md](backend/analytics-service/README.md)
+
+---
+
+### Incident Detection Service 🚨 NEW
+- **Location**: `backend/incident-detection-service`
+- **Port**: `8086`
+- **Technology**: Spring Boot WebFlux (Reactive), MongoDB, Kafka
+- **Purpose**: Real-time incident detection from traffic and bus events
+
+#### Features
+- ✅ Automatic incident detection from traffic patterns
+- ✅ Multiple detection algorithms (speed drops, congestion, sensor flags)
+- ✅ Bus abnormality detection (breakdowns, sudden stops)
+- ✅ Incident classification and severity scoring
+- ✅ MongoDB storage with geospatial indexing
+- ✅ Kafka event streaming for downstream consumers
+
+#### Key Endpoints
+- `GET /incidents` - Get all incidents
+- `GET /incidents/active` - Get active incidents only
+- `GET /incidents/recent?hoursBack=24` - Get recent incidents
+- `GET /incidents/status/{status}` - Filter by status (DETECTED/CONFIRMED/RESOLVED)
+- `GET /incidents/type/{type}` - Filter by type (ACCIDENT/CONGESTION/BUS_BREAKDOWN)
+- `GET /incidents/severity/{severity}` - Filter by severity (LOW/MEDIUM/HIGH/CRITICAL)
+- `PATCH /incidents/{id}/status` - Update incident status
+- `DELETE /incidents/{id}` - Delete incident (false positive)
+
+#### Detection Algorithms
+
+**1. Sudden Speed Drop (Accident Detection)**
+- Monitors rolling 5-reading average
+- Triggers: Speed drop >50%, current <20 km/h, previous >40 km/h
+- Confidence: 60-95% based on severity
+
+**2. Severe Congestion**
+- Triggers: SEVERE congestion + occupancy >90%
+- Auto-calculates estimated delay
+
+**3. Sensor Incident Flag**
+- Direct sensor incident reporting
+- High confidence (95%)
+
+**4. Bus Abnormality**
+- Detects sudden stops (30→5 km/h in <30s)
+- Medium severity incidents
+
+#### Kafka Events
+
+**Topics Consumed:**
+- `traffic.reading.events` - Real-time traffic data (3 consumers)
+- `bus.location.events` - Bus location updates (2 consumers)
+
+**Topic Published:**
+- `incident.events` - Detected incident notifications (3 partitions)
+
+#### Incident Types
+- **ACCIDENT** - Traffic accident detected from sudden speed drops
+- **SEVERE_CONGESTION** - Abnormal congestion patterns
+- **ROAD_CLOSURE** - Road blocked/closed
+- **BUS_BREAKDOWN** - Bus malfunction or sudden stop
+- **SENSOR_MALFUNCTION** - Sensor offline/error
+- **WEATHER_RELATED** - Weather-induced incidents
+- **CONSTRUCTION** - Road construction/maintenance
+- **SPECIAL_EVENT** - Event causing traffic impact
+
+#### Configuration
+```yaml
+app:
+  kafka:
+    topics:
+      traffic-reading: traffic.reading.events
+      bus-location: bus.location.events
+      incident-events: incident.events
+```
+
+#### Security
+- OAuth2/JWT (Keycloak)
+- Roles: `incident_read`, `incident_write`
+- Dev mode: Set `APP_SECURITY_ENABLED=false`
+
+See detailed documentation: [backend/incident-detection-service/README.md](backend/incident-detection-service/README.md)
