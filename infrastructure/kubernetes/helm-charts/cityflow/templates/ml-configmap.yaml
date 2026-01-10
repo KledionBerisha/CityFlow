@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cityflow.fullname" . }}-ml-config
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    project:
+      name: "cityflow-ml"
+      version: "1.0.0"
+    
+    mlflow:
+      tracking_uri: "http://{{ include "cityflow.fullname" . }}-mlflow:5001"
+      experiment_name: "cityflow-traffic-prediction"
+      artifact_location: "./mlruns"
+      backend_store_uri: "sqlite:///mlflow.db"
+    
+    data:
+      postgres:
+        host: "{{ include "cityflow.fullname" . }}-postgres"
+        port: 5432
+        database: "{{ .Values.infrastructure.postgresql.auth.database }}"
+        user: "{{ .Values.infrastructure.postgresql.auth.username }}"
+        password: "{{ .Values.infrastructure.postgresql.auth.password }}"
+      mongodb:
+        uri: "mongodb://{{ include "cityflow.fullname" . }}-mongodb:27017/{{ .Values.infrastructure.postgresql.auth.database }}"
+        database: "{{ .Values.infrastructure.postgresql.auth.database }}"
+      redis:
+        host: "{{ include "cityflow.fullname" . }}-redis"
+        port: 6379
+        db: 0
+    
+    kafka:
+      bootstrap_servers: "{{ include "cityflow.fullname" . }}-kafka:9092"
+      consumer_group: "ml-prediction-service"
+    
+    models:
+      traffic_speed_prediction:
+        type: "xgboost"
+        prediction_horizons: [10, 20, 30]
+        target: "speed_kmh"
+    
+    training:
+      train_days: 30
+      min_samples: 1000
+      test_size: 0.2
