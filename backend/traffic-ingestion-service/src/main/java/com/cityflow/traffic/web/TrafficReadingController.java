@@ -1,5 +1,6 @@
 package com.cityflow.traffic.web;
 
+import com.cityflow.traffic.dto.RoadTrafficDto;
 import com.cityflow.traffic.dto.TrafficReadingDto;
 import com.cityflow.traffic.model.CongestionLevel;
 import com.cityflow.traffic.service.TrafficReadingService;
@@ -88,5 +89,11 @@ public class TrafficReadingController {
         log.debug("Fetching incident readings");
         return trafficReadingService.getIncidentReadings()
                 .map(TrafficReadingDto::fromEntity);
+    }
+
+    @GetMapping("/roads")
+    public Flux<RoadTrafficDto> getRoadTrafficData() {
+        log.debug("Fetching road traffic data with geometry");
+        return trafficReadingService.getRoadTrafficData();
     }
 }

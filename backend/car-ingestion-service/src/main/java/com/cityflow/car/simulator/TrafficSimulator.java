@@ -17,12 +17,17 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+/**
+ * Realistic traffic simulator for Prishtina.
+ * Cars follow actual roads, cluster at congestion hotspots, and react to traffic density.
+ */
 @Component
 public class TrafficSimulator {
 
@@ -37,14 +42,10 @@ public class TrafficSimulator {
     private final double maxSpeedKmh;
     private final int intervalMs;
     private final int initialCarCount;
-    private final double cityBoundsMinLat;
-    private final double cityBoundsMaxLat;
-    private final double cityBoundsMinLon;
-    private final double cityBoundsMaxLon;
-    private final double trafficDensityRadiusKm; // Radius for calculating nearby traffic
+    private final double trafficDensityRadiusKm;
 
     // Store current position state for each car
-    private final ConcurrentHashMap<String, SimulatedCarState> carStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, RoadFollowingCarState> carStates = new ConcurrentHashMap<>();
 
     public TrafficSimulator(
             CarRepository carRepository,
@@ -56,10 +57,6 @@ public class TrafficSimulator {
             @Value("${app.simulator.max-speed-kmh:80}") double maxSpeedKmh,
             @Value("${app.simulator.interval-ms:3000}") int intervalMs,
             @Value("${app.simulator.initial-car-count:100}") int initialCarCount,
-            @Value("${app.simulator.city-bounds.min-lat:42.0}") double cityBoundsMinLat,
-            @Value("${app.simulator.city-bounds.max-lat:42.5}") double cityBoundsMaxLat,
-            @Value("${app.simulator.city-bounds.min-lon:21.0}") double cityBoundsMinLon,
-            @Value("${app.simulator.city-bounds.max-lon:21.5}") double cityBoundsMaxLon,
             @Value("${app.simulator.traffic-density-radius-km:0.5}") double trafficDensityRadiusKm) {
         this.carRepository = carRepository;
         this.carLocationRepository = carLocationRepository;
@@ -70,10 +67,6 @@ public class TrafficSimulator {
         this.maxSpeedKmh = maxSpeedKmh;
         this.intervalMs = intervalMs;
         this.initialCarCount = initialCarCount;
-        this.cityBoundsMinLat = cityBoundsMinLat;
-        this.cityBoundsMaxLat = cityBoundsMaxLat;
-        this.cityBoundsMinLon = cityBoundsMinLon;
-        this.cityBoundsMaxLon = cityBoundsMaxLon;
         this.trafficDensityRadiusKm = trafficDensityRadiusKm;
     }
 
@@ -128,22 +121,22 @@ public class TrafficSimulator {
     }
 
     /**
-     * Simulate movement for a single car
+     * Simulate movement for a single car following actual roads
      */
     private Mono<Void> simulateCarMovement(Car car) {
-        // Get or initialize car state
-        SimulatedCarState state = carStates.computeIfAbsent(
+        // Get or initialize car state on a random road
+        RoadFollowingCarState state = carStates.computeIfAbsent(
                 car.getId(),
-                id -> new SimulatedCarState(
-                        randomLatitude(),
-                        randomLongitude(),
-                        ThreadLocalRandom.current().nextDouble(0, 360)));
+                id -> new RoadFollowingCarState(PrishtinaRoadNetwork.getRandomRoad()));
+
+        // Get current hour for congestion calculation
+        int currentHour = Instant.now().atZone(ZoneId.systemDefault()).getHour();
 
         // Calculate traffic density around this car
         return calculateTrafficDensity(state.getLatitude(), state.getLongitude())
                 .flatMap(trafficMetrics -> {
-                    // Update car position based on traffic conditions
-                    updateCarPosition(state, trafficMetrics);
+                    // Update car position based on road and traffic conditions
+                    updateRoadFollowingPosition(state, trafficMetrics, currentHour);
 
                     // Create location update
                     Instant now = Instant.now();
@@ -198,49 +191,54 @@ public class TrafficSimulator {
     }
 
     /**
-     * Update car position based on traffic conditions
+     * Update car position following roads with congestion awareness
      */
-    private void updateCarPosition(SimulatedCarState state, TrafficMetrics trafficMetrics) {
-        // Calculate distance to travel this interval
-        double baseDistanceKm = (baseSpeedKmh * intervalMs) / (1000.0 * 3600.0);
-
-        // Adjust speed based on traffic density and congestion
-        double speedMultiplier = calculateSpeedMultiplier(trafficMetrics);
-        double adjustedSpeedKmh = baseSpeedKmh * speedMultiplier;
-        adjustedSpeedKmh = Math.min(adjustedSpeedKmh, maxSpeedKmh);
-        adjustedSpeedKmh = Math.max(adjustedSpeedKmh, 5.0); // Minimum 5 km/h
-
-        double distanceKm = (adjustedSpeedKmh * intervalMs) / (1000.0 * 3600.0);
-        state.setCurrentSpeed(adjustedSpeedKmh);
-
-        // Move car in current direction
-        double deltaLat = (distanceKm / 111.0) * Math.cos(Math.toRadians(state.getHeading()));
-        double deltaLon = (distanceKm / 111.0) * Math.sin(Math.toRadians(state.getHeading()))
-                / Math.cos(Math.toRadians(state.getLatitude()));
-
-        double newLat = state.getLatitude() + deltaLat;
-        double newLon = state.getLongitude() + deltaLon;
-
-        // Check bounds and bounce back or change direction
-        if (newLat < cityBoundsMinLat || newLat > cityBoundsMaxLat ||
-            newLon < cityBoundsMinLon || newLon > cityBoundsMaxLon) {
-            // Change direction when hitting city bounds
-            state.setHeading((state.getHeading() + 180 + ThreadLocalRandom.current().nextDouble(-45, 45)) % 360);
-            newLat = Math.max(cityBoundsMinLat, Math.min(cityBoundsMaxLat, newLat));
-            newLon = Math.max(cityBoundsMinLon, Math.min(cityBoundsMaxLon, newLon));
-        } else {
-            // Occasionally change direction slightly for realistic movement
-            if (ThreadLocalRandom.current().nextDouble() < 0.15) {
-                state.setHeading((state.getHeading() + ThreadLocalRandom.current().nextDouble(-30, 30) + 360) % 360);
+    private void updateRoadFollowingPosition(RoadFollowingCarState state, TrafficMetrics trafficMetrics, int currentHour) {
+        PrishtinaRoadNetwork.Road road = state.getCurrentRoad();
+        
+        // Get road speed limit
+        double roadSpeedLimit = road.speedLimitKmh();
+        
+        // Calculate congestion at current location from hotspots
+        double congestionSlowdown = 1.0;
+        for (PrishtinaRoadNetwork.CongestionHotspot hotspot : PrishtinaRoadNetwork.getCongestionHotspots()) {
+            if (hotspot.isInHotspot(state.getLatitude(), state.getLongitude())) {
+                double hotspotSlowdown = 1.0 - hotspot.getCongestionMultiplier(currentHour);
+                congestionSlowdown = Math.min(congestionSlowdown, hotspotSlowdown);
             }
         }
+        
+        // Adjust speed based on traffic density and congestion
+        double speedMultiplier = calculateSpeedMultiplier(trafficMetrics);
+        speedMultiplier *= congestionSlowdown;
+        
+        double adjustedSpeedKmh = roadSpeedLimit * speedMultiplier;
+        adjustedSpeedKmh = Math.max(adjustedSpeedKmh, 3.0); // Minimum 3 km/h even in gridlock
+        adjustedSpeedKmh = Math.min(adjustedSpeedKmh, maxSpeedKmh);
 
-        state.setLatitude(newLat);
-        state.setLongitude(newLon);
+        state.setCurrentSpeed(adjustedSpeedKmh);
 
-        // Update destination if reached or randomly
-        if (state.hasReachedDestination() || ThreadLocalRandom.current().nextDouble() < 0.05) {
-            state.setDestination(randomLatitude(), randomLongitude());
+        // Calculate distance to travel this interval
+        double distanceKm = (adjustedSpeedKmh * intervalMs) / (1000.0 * 3600.0);
+
+        // Move towards next waypoint on the road
+        state.moveAlongRoad(distanceKm);
+
+        // Check if car has reached end of road
+        if (state.hasReachedEndOfRoad()) {
+            // Switch to a connected road or start the same road in reverse
+            List<PrishtinaRoadNetwork.Road> nearbyRoads = PrishtinaRoadNetwork.getRoadsNearLocation(
+                    state.getLatitude(), state.getLongitude(), 0.1);
+            
+            if (!nearbyRoads.isEmpty() && ThreadLocalRandom.current().nextDouble() < 0.7) {
+                // 70% chance to switch to a different nearby road
+                PrishtinaRoadNetwork.Road newRoad = nearbyRoads.get(
+                        ThreadLocalRandom.current().nextInt(nearbyRoads.size()));
+                state.switchToRoad(newRoad);
+            } else {
+                // Reverse direction on current road
+                state.reverseDirection();
+            }
         }
     }
 
@@ -260,7 +258,7 @@ public class TrafficSimulator {
     /**
      * Create location update
      */
-    private Mono<CarLocation> createLocationUpdate(Car car, SimulatedCarState state,
+    private Mono<CarLocation> createLocationUpdate(Car car, RoadFollowingCarState state,
             Instant now, TrafficMetrics trafficMetrics) {
         CarLocation location = CarLocation.builder()
                 .carId(car.getId())
@@ -273,6 +271,8 @@ public class TrafficSimulator {
                 .source(CarLocation.LocationSource.SIMULATOR)
                 .trafficDensity(trafficMetrics.density)
                 .congestionLevel(trafficMetrics.congestionLevel)
+                .roadId(state.getCurrentRoad().id())
+                .roadName(state.getCurrentRoad().name())
                 .build();
 
         return Mono.just(location);
@@ -335,68 +335,147 @@ public class TrafficSimulator {
         return R * c;
     }
 
-    private double randomLatitude() {
-        return cityBoundsMinLat + ThreadLocalRandom.current().nextDouble() * 
-                (cityBoundsMaxLat - cityBoundsMinLat);
-    }
-
-    private double randomLongitude() {
-        return cityBoundsMinLon + ThreadLocalRandom.current().nextDouble() * 
-                (cityBoundsMaxLon - cityBoundsMinLon);
-    }
-
     private String generateLicensePlate() {
-        return String.format("%s-%d", 
-                (char) ('A' + ThreadLocalRandom.current().nextInt(26)) +
+        // Kosovo license plate format: XX-NNN-XX
+        String region = ThreadLocalRandom.current().nextBoolean() ? "PR" : 
+                (ThreadLocalRandom.current().nextBoolean() ? "KS" : "PE");
+        return String.format("%s-%03d-%c%c", 
+                region,
+                ThreadLocalRandom.current().nextInt(100, 999),
                 (char) ('A' + ThreadLocalRandom.current().nextInt(26)),
-                ThreadLocalRandom.current().nextInt(100, 999));
+                (char) ('A' + ThreadLocalRandom.current().nextInt(26)));
     }
 
     private String generateRandomMake() {
-        String[] makes = {"Toyota", "Honda", "Ford", "BMW", "Mercedes", "Audi", "Volkswagen", "Nissan", "Hyundai", "Kia"};
+        // Popular car makes in Kosovo
+        String[] makes = {"Volkswagen", "Mercedes", "BMW", "Audi", "Opel", "Ford", "Renault", "Peugeot", "Toyota", "Hyundai", "Skoda", "Fiat"};
         return makes[ThreadLocalRandom.current().nextInt(makes.length)];
     }
 
     private String generateRandomModel() {
-        String[] models = {"Sedan", "SUV", "Hatchback", "Coupe", "Convertible", "Truck"};
+        String[] models = {"Sedan", "SUV", "Hatchback", "Coupe", "Wagon", "Van"};
         return models[ThreadLocalRandom.current().nextInt(models.length)];
     }
 
     private String generateRandomColor() {
-        String[] colors = {"Red", "Blue", "Black", "White", "Silver", "Gray", "Green", "Yellow"};
+        String[] colors = {"Black", "White", "Silver", "Gray", "Blue", "Red", "Green", "Beige"};
         return colors[ThreadLocalRandom.current().nextInt(colors.length)];
     }
 
     /**
-     * Internal state for simulated car position
+     * Car state that follows roads through waypoints
      */
-    private class SimulatedCarState {
+    private class RoadFollowingCarState {
+        private PrishtinaRoadNetwork.Road currentRoad;
+        private int currentWaypointIndex;
+        private int direction; // 1 = forward, -1 = backward
         private double latitude;
         private double longitude;
         private double heading;
         private double currentSpeed;
-        private double destinationLat;
-        private double destinationLon;
+        private double progressToNextWaypoint; // 0.0 to 1.0
 
-        public SimulatedCarState(double lat, double lon, double heading) {
-            this.latitude = lat;
-            this.longitude = lon;
-            this.heading = heading;
-            this.currentSpeed = baseSpeedKmh;
-            this.destinationLat = randomLatitude();
-            this.destinationLon = randomLongitude();
+        public RoadFollowingCarState(PrishtinaRoadNetwork.Road road) {
+            this.currentRoad = road;
+            this.direction = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
+            
+            // Start at a random position along the road
+            List<double[]> waypoints = road.waypoints();
+            this.currentWaypointIndex = ThreadLocalRandom.current().nextInt(waypoints.size() - 1);
+            this.progressToNextWaypoint = ThreadLocalRandom.current().nextDouble();
+            
+            // Calculate initial position
+            updatePositionFromWaypoints();
+            this.currentSpeed = road.speedLimitKmh() * (0.7 + ThreadLocalRandom.current().nextDouble() * 0.3);
         }
 
-        public boolean hasReachedDestination() {
-            double distance = calculateDistance(latitude, longitude, destinationLat, destinationLon);
-            return distance < 0.1; // Within 100 meters
+        private void updatePositionFromWaypoints() {
+            List<double[]> waypoints = currentRoad.waypoints();
+            int nextIndex = getNextWaypointIndex();
+            
+            double[] current = waypoints.get(currentWaypointIndex);
+            double[] next = waypoints.get(nextIndex);
+            
+            // Interpolate position between waypoints
+            this.latitude = current[0] + (next[0] - current[0]) * progressToNextWaypoint;
+            this.longitude = current[1] + (next[1] - current[1]) * progressToNextWaypoint;
+            
+            // Calculate heading
+            this.heading = calculateBearing(current[0], current[1], next[0], next[1]);
         }
 
-        public void setDestination(double lat, double lon) {
-            this.destinationLat = lat;
-            this.destinationLon = lon;
-            // Update heading towards destination
-            this.heading = calculateBearing(latitude, longitude, lat, lon);
+        public void moveAlongRoad(double distanceKm) {
+            List<double[]> waypoints = currentRoad.waypoints();
+            int nextIndex = getNextWaypointIndex();
+            
+            double[] current = waypoints.get(currentWaypointIndex);
+            double[] next = waypoints.get(nextIndex);
+            
+            // Calculate distance between current and next waypoint
+            double waypointDistance = calculateDistance(current[0], current[1], next[0], next[1]);
+            
+            if (waypointDistance > 0) {
+                // Calculate how much progress this distance represents
+                double progressIncrement = distanceKm / waypointDistance;
+                progressToNextWaypoint += progressIncrement;
+                
+                // Add slight lane variation for realism
+                double laneOffset = (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.0001;
+                
+                // Check if we've passed the next waypoint
+                while (progressToNextWaypoint >= 1.0) {
+                    progressToNextWaypoint -= 1.0;
+                    currentWaypointIndex = nextIndex;
+                    nextIndex = getNextWaypointIndex();
+                    
+                    if (hasReachedEndOfRoad()) {
+                        progressToNextWaypoint = 0.0;
+                        break;
+                    }
+                }
+                
+                // Update position with lane offset
+                updatePositionFromWaypoints();
+                this.latitude += laneOffset;
+            }
+        }
+
+        private int getNextWaypointIndex() {
+            int next = currentWaypointIndex + direction;
+            return Math.max(0, Math.min(next, currentRoad.waypoints().size() - 1));
+        }
+
+        public boolean hasReachedEndOfRoad() {
+            if (direction > 0) {
+                return currentWaypointIndex >= currentRoad.waypoints().size() - 1;
+            } else {
+                return currentWaypointIndex <= 0;
+            }
+        }
+
+        public void reverseDirection() {
+            direction *= -1;
+            progressToNextWaypoint = 0.0;
+        }
+
+        public void switchToRoad(PrishtinaRoadNetwork.Road newRoad) {
+            // Find closest waypoint on new road
+            double minDistance = Double.MAX_VALUE;
+            int closestIndex = 0;
+            
+            for (int i = 0; i < newRoad.waypoints().size(); i++) {
+                double[] wp = newRoad.waypoints().get(i);
+                double dist = calculateDistance(latitude, longitude, wp[0], wp[1]);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestIndex = i;
+                }
+            }
+            
+            this.currentRoad = newRoad;
+            this.currentWaypointIndex = closestIndex;
+            this.progressToNextWaypoint = 0.0;
+            this.direction = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
         }
 
         private double calculateBearing(double lat1, double lon1, double lat2, double lon2) {
@@ -412,18 +491,13 @@ public class TrafficSimulator {
             return (bearing + 360) % 360;
         }
 
-        // Getters and Setters
+        // Getters
         public double getLatitude() { return latitude; }
-        public void setLatitude(double latitude) { this.latitude = latitude; }
-
         public double getLongitude() { return longitude; }
-        public void setLongitude(double longitude) { this.longitude = longitude; }
-
         public double getHeading() { return heading; }
-        public void setHeading(double heading) { this.heading = heading; }
-
         public double getCurrentSpeed() { return currentSpeed; }
-        public void setCurrentSpeed(double currentSpeed) { this.currentSpeed = currentSpeed; }
+        public void setCurrentSpeed(double speed) { this.currentSpeed = speed; }
+        public PrishtinaRoadNetwork.Road getCurrentRoad() { return currentRoad; }
     }
 
     /**

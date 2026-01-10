@@ -117,6 +117,8 @@ public class BusLocationService {
                 .nextStopId(cache.getNextStopId())
                 .distanceToNextStopKm(cache.getDistanceToNextStopKm())
                 .estimatedArrivalSeconds(cache.getEstimatedArrivalSeconds())
+                .lineNumber(cache.getLineNumber())
+                .routeName(cache.getRouteName())
                 .build();
     }
 }

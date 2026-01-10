@@ -58,10 +58,20 @@ app:
       bus-status: bus.status.events
   simulator:
     enabled: ${APP_SIMULATOR_ENABLED:true}
+    mode: ${APP_SIMULATOR_MODE:prishtina}  # 'prishtina' uses real Trafiku Urban routes, 'generic' uses route service
     interval-ms: 5000  # Update every 5 seconds
     speed-kmh: 40      # Average speed in km/h
-    stop-wait-seconds: 30  # Time to wait at each stop in seconds
+    stop-wait-seconds: 20  # Time to wait at each stop in seconds
   redis:
     ttl-seconds: 300   # Cache bus positions for 5 minutes
   route-service:
     url: ${ROUTE_SERVICE_URL:http://localhost:8081}
+  
+  # Prishtina Bus Routes (based on Trafiku Urban app)
+  # Lines simulated:
+  #   - Line 1: Qendra - Veternik (15 min frequency)
+  #   - Line 1A: Qendra - Aeroport (60 min frequency, express)
+  #   - Line 3: Qendra - Mati - Germia (20 min frequency)
+  #   - Line 4: Qendra - Arbëria (20 min frequency)
+  # Operating hours: 05:00 - 23:00
+  # Source: trafikurban-pr.com (Municipality of Prishtina)

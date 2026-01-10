@@ -30,7 +30,7 @@ services:
     image: confluentinc/cp-kafka:7.5.3
     depends_on:
       - kafka
-    entrypoint: /bin/bash -c "sleep 8 && kafka-topics --create --if-not-exists --topic route.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic bus.location.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic bus.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic traffic.reading.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic sensor.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic incident.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 || true"
+    entrypoint: /bin/bash -c "sleep 8 && kafka-topics --create --if-not-exists --topic route.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic bus.location.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic bus.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic traffic.reading.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic sensor.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic incident.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 && kafka-topics --create --if-not-exists --topic car.location.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 5 && kafka-topics --create --if-not-exists --topic car.status.events --bootstrap-server kafka:9092 --replication-factor 1 --partitions 3 || true"
 
   redis:
     image: redis:7-alpine
@@ -104,6 +104,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       APP_KAFKA_ENABLED: "true"
       APP_SIMULATOR_ENABLED: "true"
+      APP_SIMULATOR_MODE: "prishtina"
       ROUTE_SERVICE_URL: http://route-mgmt-service:8081
     ports:
       - "8082:8082"
@@ -129,6 +130,33 @@ services:
       APP_SIMULATOR_ENABLED: "true"
     ports:
       - "8083:8083"
+    depends_on:
+      - mongo
+      - redis
+      - kafka
+      - kafka-init
+      - keycloak
+
+  car-ingestion-service:
+    build:
+      context: ./backend/car-ingestion-service
+    environment:
+      SERVER_PORT: 8088
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/cityflow
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
+      APP_SECURITY_ENABLED: "false"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      APP_KAFKA_ENABLED: "true"
+      APP_SIMULATOR_ENABLED: "true"
+      APP_SIMULATOR_INITIAL_CAR_COUNT: 50
+      APP_SIMULATOR_CITY_BOUNDS_MIN_LAT: 42.62
+      APP_SIMULATOR_CITY_BOUNDS_MAX_LAT: 42.70
+      APP_SIMULATOR_CITY_BOUNDS_MIN_LON: 21.10
+      APP_SIMULATOR_CITY_BOUNDS_MAX_LON: 21.20
+    ports:
+      - "8088:8088"
     depends_on:
       - mongo
       - redis
@@ -210,6 +238,8 @@ services:
       ANALYTICS_SERVICE_URL: http://analytics-service:8084
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
       INCIDENT_SERVICE_URL: http://incident-detection-service:8086
+      CAR_SERVICE_URL: http://car-ingestion-service:8088
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://host.docker.internal:8090}
       OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
@@ -220,6 +250,7 @@ services:
       - route-mgmt-service
       - bus-ingestion-service
       - traffic-ingestion-service
+      - car-ingestion-service
       - analytics-service
       - notification-service
       - incident-detection-service

@@ -97,6 +97,28 @@ class SpeedPrediction(BaseModel):
     timestamp: datetime
 
 
+class CongestionDurationRequest(BaseModel):
+    """Request for congestion duration prediction."""
+    road_segment_id: str
+    current_speed_kmh: float = Field(..., gt=0, lt=200)
+    normal_speed_kmh: float = Field(default=50, gt=0, lt=200, description="Normal/free-flow speed for this road")
+    current_congestion_level: float = Field(..., ge=0, le=1, description="Current congestion 0-1")
+    vehicle_count: Optional[int] = Field(None, ge=0)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class CongestionDurationResponse(BaseModel):
+    """Response for congestion duration prediction."""
+    road_segment_id: str
+    current_congestion_level: float
+    predicted_duration_minutes: int = Field(description="Estimated minutes until congestion clears")
+    confidence: str = Field(description="low, medium, or high confidence")
+    expected_clear_time: datetime
+    prediction_factors: Dict
+    timestamp: datetime
+
+
 class PredictionResponse(BaseModel):
     """Prediction response."""
     predictions: List[SpeedPrediction]
@@ -361,6 +383,113 @@ async def predict_all_segments(horizon: int = 30):
             model_version="error",
             timestamp=datetime.now()
         )
+
+
+@app.post("/predict/congestion-duration", response_model=CongestionDurationResponse)
+async def predict_congestion_duration(request: CongestionDurationRequest):
+    """
+    Predict how long current congestion will last.
+    
+    Uses a combination of:
+    - Current congestion level
+    - Time of day (peak hours vs off-peak)
+    - Historical patterns
+    - Vehicle density
+    
+    Returns estimated minutes until traffic returns to normal flow.
+    """
+    api_requests.labels(endpoint='/predict/congestion-duration', method='POST').inc()
+    
+    try:
+        now = datetime.now()
+        current_hour = now.hour
+        
+        # Calculate congestion severity (0-1 scale)
+        speed_ratio = request.current_speed_kmh / request.normal_speed_kmh
+        congestion_severity = max(0, 1 - speed_ratio)
+        
+        # Factors affecting duration
+        factors = {}
+        
+        # Time of day factor
+        is_morning_peak = 7 <= current_hour <= 9
+        is_evening_peak = 16 <= current_hour <= 19
+        is_peak_hour = is_morning_peak or is_evening_peak
+        
+        if is_peak_hour:
+            time_factor = 1.5  # Congestion lasts longer during peak
+            if is_morning_peak:
+                # Morning rush typically clears by 9:30
+                minutes_to_peak_end = max(0, (9 * 60 + 30) - (current_hour * 60 + now.minute))
+            else:
+                # Evening rush typically clears by 19:30
+                minutes_to_peak_end = max(0, (19 * 60 + 30) - (current_hour * 60 + now.minute))
+            factors['peak_hour'] = True
+            factors['minutes_to_peak_end'] = minutes_to_peak_end
+        else:
+            time_factor = 0.7  # Congestion clears faster outside peak
+            minutes_to_peak_end = None
+            factors['peak_hour'] = False
+        
+        # Day of week factor
+        day_of_week = now.weekday()
+        is_weekend = day_of_week >= 5
+        weekend_factor = 0.6 if is_weekend else 1.0
+        factors['weekend'] = is_weekend
+        
+        # Base duration calculation (in minutes)
+        # Light congestion (0.1-0.3): 5-15 min
+        # Moderate congestion (0.3-0.6): 15-30 min
+        # Heavy congestion (0.6-0.8): 30-60 min
+        # Severe congestion (0.8-1.0): 45-90 min
+        
+        if congestion_severity < 0.3:
+            base_duration = 5 + congestion_severity * 33  # 5-15 min
+            confidence = "high"
+        elif congestion_severity < 0.6:
+            base_duration = 15 + (congestion_severity - 0.3) * 50  # 15-30 min
+            confidence = "medium"
+        elif congestion_severity < 0.8:
+            base_duration = 30 + (congestion_severity - 0.6) * 150  # 30-60 min
+            confidence = "medium"
+        else:
+            base_duration = 45 + (congestion_severity - 0.8) * 225  # 45-90 min
+            confidence = "low"
+        
+        # Apply factors
+        predicted_duration = base_duration * time_factor * weekend_factor
+        
+        # Cap by peak end time if applicable
+        if is_peak_hour and minutes_to_peak_end is not None:
+            predicted_duration = min(predicted_duration, minutes_to_peak_end + 10)
+        
+        # Minimum 5 minutes, maximum 120 minutes
+        predicted_duration = max(5, min(120, int(predicted_duration)))
+        
+        # Calculate expected clear time
+        from datetime import timedelta
+        expected_clear_time = now + timedelta(minutes=predicted_duration)
+        
+        factors['congestion_severity'] = round(congestion_severity, 2)
+        factors['time_factor'] = time_factor
+        factors['weekend_factor'] = weekend_factor
+        
+        logger.info(f"Congestion duration prediction for {request.road_segment_id}: "
+                   f"{predicted_duration} minutes (severity: {congestion_severity:.2f})")
+        
+        return CongestionDurationResponse(
+            road_segment_id=request.road_segment_id,
+            current_congestion_level=request.current_congestion_level,
+            predicted_duration_minutes=predicted_duration,
+            confidence=confidence,
+            expected_clear_time=expected_clear_time,
+            prediction_factors=factors,
+            timestamp=now
+        )
+    
+    except Exception as e:
+        logger.error(f"Congestion duration prediction failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 if __name__ == "__main__":

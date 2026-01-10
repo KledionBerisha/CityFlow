@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:8088}
 
 spring:
   application:
@@ -61,12 +61,12 @@ app:
     interval-ms: 3000  # Update every 3 seconds (faster than buses due to more cars)
     base-speed-kmh: 50  # Base speed in km/h
     max-speed-kmh: 80   # Maximum speed in km/h
-    initial-car-count: 100  # Initial number of cars to simulate
+    initial-car-count: ${APP_SIMULATOR_INITIAL_CAR_COUNT:50}  # Number of cars to simulate
     city-bounds:
-      min-lat: 42.0
-      max-lat: 42.5
-      min-lon: 21.0
-      max-lon: 21.5
+      min-lat: ${APP_SIMULATOR_CITY_BOUNDS_MIN_LAT:42.62}  # Prishtina area
+      max-lat: ${APP_SIMULATOR_CITY_BOUNDS_MAX_LAT:42.70}
+      min-lon: ${APP_SIMULATOR_CITY_BOUNDS_MIN_LON:21.10}
+      max-lon: ${APP_SIMULATOR_CITY_BOUNDS_MAX_LON:21.20}
     traffic-density-radius-km: 0.5  # Radius for calculating nearby traffic (500 meters)
   redis:
     ttl-seconds: 300   # Cache car positions for 5 minutes
