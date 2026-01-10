@@ -1,0 +1,135 @@
+{{- if .Values.apiGateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cityflow.fullname" . }}-api-gateway
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: api-gateway
+    component: gateway
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.apiGateway.replicaCount }}
+  selector:
+    matchLabels:
+      app: api-gateway
+      {{- include "cityflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        component: gateway
+        {{- include "cityflow.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.apiGateway.service.port }}"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: api-gateway
+        image: {{ include "cityflow.image" (dict "Values" .Values "repository" .Values.apiGateway.image.repository "tag" .Values.image.tag) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy | default "Always" }}
+        ports:
+        - containerPort: {{ .Values.apiGateway.service.port }}
+          name: http
+          protocol: TCP
+        env:
+        - name: SERVER_PORT
+          value: "{{ .Values.apiGateway.service.port }}"
+        - name: ROUTE_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-route-mgmt:8081"
+        - name: BUS_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-bus-ingestion:8082"
+        - name: TRAFFIC_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-traffic-ingestion:8083"
+        - name: ANALYTICS_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-analytics:8084"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-notification:8085"
+        - name: INCIDENT_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-incident-detection:8086"
+        - name: CAR_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-car-ingestion:8088"
+        - name: ML_SERVICE_URL
+          value: "http://{{ include "cityflow.fullname" . }}-ml-api:8090"
+        - name: OAUTH2_ISSUER_URI
+          value: "{{ .Values.security.keycloak.issuerUri }}"
+        - name: APP_SECURITY_ENABLED
+          value: "{{ .Values.security.enabled | default "false" }}"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "{{ include "cityflow.fullname" . }}-redis"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: {{ .Values.apiGateway.service.port }}
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: {{ .Values.apiGateway.service.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.apiGateway.resources | nindent 10 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cityflow.fullname" . }}-api-gateway
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: api-gateway
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.apiGateway.service.type }}
+  ports:
+  - port: {{ .Values.apiGateway.service.port }}
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: api-gateway
+    {{- include "cityflow.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.apiGateway.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "cityflow.fullname" . }}-api-gateway
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: api-gateway
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "cityflow.fullname" . }}-api-gateway
+  minReplicas: {{ .Values.apiGateway.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.apiGateway.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.apiGateway.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+{{- end }}
+{{- end }}

@@ -1,0 +1,162 @@
+# Default values for CityFlow Helm Chart
+
+global:
+  imageRegistry: ""
+  imagePullPolicy: Always
+  namespace: cityflow
+
+image:
+  registry: ghcr.io
+  tag: latest
+  pullSecrets: []
+
+# API Gateway Configuration
+apiGateway:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: cityflow/api-gateway
+  service:
+    type: LoadBalancer
+    port: 8000
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# ML API Configuration
+mlApi:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: cityflow/ml-api
+  service:
+    type: ClusterIP
+    port: 8090
+    metricsPort: 9090
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  volumeMounts:
+    models:
+      size: 1Gi
+      storageClass: standard
+
+# Backend Services
+services:
+  routeMgmt:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/route-mgmt-service
+    port: 8081
+  
+  busIngestion:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/bus-ingestion-service
+    port: 8082
+  
+  trafficIngestion:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/traffic-ingestion-service
+    port: 8083
+  
+  analytics:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/analytics-service
+    port: 8084
+  
+  incidentDetection:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/incident-detection-service
+    port: 8086
+  
+  carIngestion:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: cityflow/car-ingestion-service
+    port: 8088
+
+# Infrastructure
+infrastructure:
+  postgresql:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 20Gi
+    auth:
+      username: kledionberisha
+      password: kledion123
+      database: cityflow
+  
+  mongodb:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 20Gi
+  
+  redis:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 5Gi
+  
+  kafka:
+    enabled: true
+    replicaCount: 1
+    persistence:
+      enabled: true
+      size: 10Gi
+  
+  keycloak:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 5Gi
+
+# Monitoring
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 10Gi
+    retention: 30d
+  
+  grafana:
+    enabled: true
+    persistence:
+      enabled: true
+      size: 5Gi
+    adminPassword: admin
+    dashboards:
+      - cityflow-overview
+
+# Security
+security:
+  enabled: true
+  keycloak:
+    realm: cityflow
+    issuerUri: "http://keycloak-service:8080/realms/cityflow"

@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: cityflow
+  labels:
+    app: api-gateway
+    component: gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+        component: gateway
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+      - name: api-gateway
+        image: cityflow/api-gateway:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: SERVER_PORT
+          value: "8000"
+        - name: ROUTE_SERVICE_URL
+          value: "http://route-mgmt-service:8081"
+        - name: BUS_SERVICE_URL
+          value: "http://bus-ingestion-service:8082"
+        - name: TRAFFIC_SERVICE_URL
+          value: "http://traffic-ingestion-service:8083"
+        - name: ANALYTICS_SERVICE_URL
+          value: "http://analytics-service:8084"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-service:8085"
+        - name: INCIDENT_SERVICE_URL
+          value: "http://incident-detection-service:8086"
+        - name: CAR_SERVICE_URL
+          value: "http://car-ingestion-service:8088"
+        - name: ML_SERVICE_URL
+          value: "http://ml-api-service:8090"
+        - name: OAUTH2_ISSUER_URI
+          value: "http://keycloak-service:8080/realms/cityflow"
+        - name: APP_SECURITY_ENABLED
+          value: "false"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis-service"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-service
+  namespace: cityflow
+  labels:
+    app: api-gateway
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: api-gateway

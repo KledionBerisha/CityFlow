@@ -15,16 +15,16 @@ mlflow:
 data:
   delta_lake_path: "/tmp/cityflow/delta-lake"
   postgres:
-    host: "localhost"
-    port: 5433
+    host: "postgres"  # Use service name in Docker, or "localhost" if running outside Docker
+    port: 5432  # Internal Docker port (5433 is external)
     database: "cityflow"
     user: "kledionberisha"
     password: "kledion123"
   mongodb:
-    uri: "mongodb://localhost:27017"
+    uri: "mongodb://mongo:27017"  # Use service name in Docker, or "mongodb://localhost:27017" if running outside
     database: "cityflow"
   redis:
-    host: "localhost"
+    host: "redis"  # Use service name in Docker, or "localhost" if running outside
     port: 6379
     db: 0
 

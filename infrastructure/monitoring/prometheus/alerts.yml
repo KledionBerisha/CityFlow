@@ -1,0 +1,73 @@
+groups:
+  - name: cityflow_alerts
+    interval: 30s
+    rules:
+      # Service availability alerts
+      - alert: ServiceDown
+        expr: up{job=~"api-gateway|route-mgmt-service|bus-ingestion-service|traffic-ingestion-service|analytics-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute."
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in {{ $labels.service }}"
+          description: "Error rate is {{ $value }} errors/sec in {{ $labels.service }}"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time in {{ $labels.service }}"
+          description: "95th percentile response time is {{ $value }}s in {{ $labels.service }}"
+
+      # ML API health
+      - alert: MLAPINoModels
+        expr: ml_api_models_loaded == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML API has no models loaded"
+          description: "ML API is running but has no models loaded. Predictions will fail."
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage in {{ $labels.service }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} in {{ $labels.service }}"
+
+      # Kafka consumer lag
+      - alert: KafkaConsumerLag
+        expr: kafka_consumer_lag_sum > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag"
+          description: "Kafka consumer lag is {{ $value }} messages"
+
+      # Redis connection issues
+      - alert: RedisConnectionFailure
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis connection failure"
+          description: "Cannot connect to Redis. Caching is unavailable."

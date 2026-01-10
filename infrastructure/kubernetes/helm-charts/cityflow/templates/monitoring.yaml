@@ -1,0 +1,256 @@
+{{- if .Values.monitoring.enabled }}
+{{- if .Values.monitoring.prometheus.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cityflow.fullname" . }}-prometheus-config
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'cityflow'
+        environment: 'production'
+    
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - {{ .Values.global.namespace | default "cityflow" }}
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cityflow.fullname" . }}-prometheus
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: prometheus
+    component: monitoring
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      {{- include "cityflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: monitoring
+        {{- include "cityflow.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--storage.tsdb.retention.time={{ .Values.monitoring.prometheus.retention }}'
+          - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+          - '--web.console.templates=/usr/share/prometheus/consoles'
+          - '--web.enable-lifecycle'
+        ports:
+        - containerPort: 9090
+          name: http
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus
+        - name: prometheus-storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: {{ include "cityflow.fullname" . }}-prometheus-config
+      - name: prometheus-storage
+        persistentVolumeClaim:
+          claimName: {{ include "cityflow.fullname" . }}-prometheus-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cityflow.fullname" . }}-prometheus
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: prometheus
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: prometheus
+    {{- include "cityflow.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "cityflow.fullname" . }}-prometheus-pvc
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.monitoring.prometheus.persistence.size }}
+{{- end }}
+
+{{- if .Values.monitoring.grafana.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cityflow.fullname" . }}-grafana-datasources
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+data:
+  prometheus.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ include "cityflow.fullname" . }}-prometheus:9090
+        isDefault: true
+        editable: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cityflow.fullname" . }}-grafana
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: grafana
+    component: monitoring
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+      {{- include "cityflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: grafana
+        component: monitoring
+        {{- include "cityflow.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: "admin"
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "cityflow.fullname" . }}-grafana-secret
+              key: admin-password
+        - name: GF_INSTALL_PLUGINS
+          value: "grafana-piechart-panel"
+        - name: GF_SERVER_ROOT_URL
+          value: "http://localhost:3000"
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
+        ports:
+        - containerPort: 3000
+          name: http
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: {{ include "cityflow.fullname" . }}-grafana-pvc
+      - name: grafana-datasources
+        configMap:
+          name: {{ include "cityflow.fullname" . }}-grafana-datasources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cityflow.fullname" . }}-grafana
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    app: grafana
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 3000
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: grafana
+    {{- include "cityflow.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "cityflow.fullname" . }}-grafana-pvc
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.monitoring.grafana.persistence.size }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "cityflow.fullname" . }}-grafana-secret
+  namespace: {{ .Values.global.namespace | default "cityflow" }}
+  labels:
+    {{- include "cityflow.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  admin-password: {{ .Values.monitoring.grafana.adminPassword | default "admin" }}
+{{- end }}
+{{- end }}

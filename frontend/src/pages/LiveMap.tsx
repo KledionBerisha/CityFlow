@@ -7,12 +7,13 @@ import LocationPanel from '../components/LocationPanel'
 import BusMarker from '../components/BusMarker'
 import TrafficMarker from '../components/TrafficMarker'
 import { CarMarker } from '../components/CarMarker'
+import PredictionMarker from '../components/PredictionMarker'
 import { useMapData } from '../hooks/useMapData'
 import { useBusLocations } from '../hooks/useBusLocations'
 import { useTrafficReadings } from '../hooks/useTrafficReadings'
 import { useRoadOverlays } from '../hooks/useRoadOverlays'
 import { useCarLocations } from '../hooks/useCarLocations'
-import { getRoadTrafficData, RoadTrafficData } from '../services/api'
+import { getRoadTrafficData, RoadTrafficData, getCongestionHotspots } from '../services/api'
 
 // Fix for default marker icons in React Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -226,6 +227,27 @@ function LiveMap() {
   const { trafficReadings } = useTrafficReadings()
   const { carLocations } = useCarLocations()
   const [showCars, setShowCars] = useState(true)
+  const [showBuses, setShowBuses] = useState(true)
+  const [showTraffic, setShowTraffic] = useState(true)
+  const [congestionHotspots, setCongestionHotspots] = useState<any[]>([])
+  const [showPredictions, setShowPredictions] = useState(true)
+  
+  // Fetch congestion hotspots for predictions
+  useEffect(() => {
+    const fetchHotspots = async () => {
+      try {
+        const hotspots = await getCongestionHotspots()
+        setCongestionHotspots(Array.isArray(hotspots) ? hotspots : [])
+      } catch (error) {
+        console.error('Error fetching congestion hotspots:', error)
+        setCongestionHotspots([])
+      }
+    }
+    
+    fetchHotspots()
+    const interval = setInterval(fetchHotspots, 30000) // Refresh every 30s
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <div className="relative w-full h-full">
@@ -248,13 +270,28 @@ function LiveMap() {
         ))}
         
         {/* Bus Markers */}
-        {busLocations.map((bus) => (
+        {showBuses && busLocations.map((bus) => (
           <BusMarker key={bus.busId} bus={bus} />
         ))}
         
         {/* Traffic Markers */}
-        {trafficReadings.map((reading) => (
+        {showTraffic && trafficReadings.map((reading) => (
           <TrafficMarker key={reading.sensorId} reading={reading} />
+        ))}
+        
+        {/* Prediction Markers - Congestion Hotspots */}
+        {showPredictions && congestionHotspots.slice(0, 10).map((hotspot) => (
+          <PredictionMarker
+            key={hotspot.road_segment_id}
+            segmentId={hotspot.road_segment_id}
+            latitude={hotspot.latitude}
+            longitude={hotspot.longitude}
+            currentSpeed={hotspot.current_speed_kmh}
+            predictedSpeed={hotspot.predicted_speed_kmh}
+            horizon={hotspot.prediction_horizon_minutes}
+            durationMinutes={hotspot.duration_prediction?.predicted_duration_minutes}
+            expectedClearTime={hotspot.duration_prediction?.expected_clear_time}
+          />
         ))}
       </MapContainer>
 
@@ -283,22 +320,74 @@ function LiveMap() {
         />
       </div>
 
+      {/* Layer Controls - Top Left */}
+      <div className="absolute top-4 left-4 z-[1000] bg-white rounded-lg shadow-lg p-4 min-w-[220px]">
+        <div className="font-semibold text-sm text-gray-800 mb-3 pb-2 border-b border-gray-200">Layer Controls</div>
+        
+        <div className="space-y-2.5">
+          {/* Cars Toggle */}
+          <label className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1.5 rounded transition-colors">
+            <input
+              type="checkbox"
+              checked={showCars}
+              onChange={(e) => setShowCars(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5 select-none">
+              🚗 <span>Cars ({carLocations.length})</span>
+            </span>
+          </label>
+
+          {/* Buses Toggle */}
+          <label className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1.5 rounded transition-colors">
+            <input
+              type="checkbox"
+              checked={showBuses}
+              onChange={(e) => setShowBuses(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5 select-none">
+              🚌 <span>Buses ({busLocations.length})</span>
+            </span>
+          </label>
+
+          {/* Traffic Sensors Toggle */}
+          <label className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1.5 rounded transition-colors">
+            <input
+              type="checkbox"
+              checked={showTraffic}
+              onChange={(e) => setShowTraffic(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5 select-none">
+              📊 <span>Traffic Sensors ({trafficReadings.length})</span>
+            </span>
+          </label>
+
+          {/* Predictions Toggle */}
+          <label className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1.5 rounded transition-colors">
+            <input
+              type="checkbox"
+              checked={showPredictions}
+              onChange={(e) => setShowPredictions(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-700 select-none">
+              📍 Predictions
+            </span>
+          </label>
+        </div>
+        
+        {congestionHotspots.length > 0 && showPredictions && (
+          <div className="text-xs text-gray-500 pt-3 mt-3 border-t border-gray-200">
+            {congestionHotspots.length} congestion hotspot{congestionHotspots.length !== 1 ? 's' : ''} detected
+          </div>
+        )}
+      </div>
+
       {/* Location Panel - Bottom Right */}
       <div className="absolute bottom-4 right-4 z-[1000]">
         <LocationPanel location={location} />
-      </div>
-
-      {/* Layer Controls - Top Left */}
-      <div className="absolute top-4 left-14 z-[1000] bg-white rounded-lg shadow p-2">
-        <label className="flex items-center gap-2 cursor-pointer text-sm">
-          <input
-            type="checkbox"
-            checked={showCars}
-            onChange={(e) => setShowCars(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <span>🚗 Cars ({carLocations.length})</span>
-        </label>
       </div>
     </div>
   )
