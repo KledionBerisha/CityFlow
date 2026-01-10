@@ -236,3 +236,80 @@ export async function refreshToken(): Promise<AuthResponse> {
   
   return authData
 }
+
+/**
+ * Update user password
+ */
+export async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const token = getAccessToken()
+  if (!token) {
+    throw new Error('Not authenticated')
+  }
+
+  const user = getCurrentUser()
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  // Verify current password by attempting login
+  try {
+    const tokenUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`
+    
+    const formData = new URLSearchParams()
+    formData.append('client_id', CLIENT_ID)
+    formData.append('grant_type', 'password')
+    formData.append('username', user.email)
+    formData.append('password', currentPassword)
+
+    const verifyResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+    })
+
+    if (!verifyResponse.ok) {
+      throw new Error('Current password is incorrect')
+    }
+  } catch (error: any) {
+    throw new Error('Current password is incorrect')
+  }
+
+  // Update password via backend API (through API Gateway)
+  const backendUrl = 'http://localhost:8000/api/auth/change-password'
+  
+  try {
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        email: user.email,
+        currentPassword,
+        newPassword,
+      }),
+    })
+
+    if (!response.ok) {
+      // If endpoint doesn't exist or fails, throw error
+      if (response.status === 404) {
+        throw new Error('Password change feature is not yet available on the backend')
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Authentication failed. Please log in again.')
+      }
+      
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.message || 'Failed to update password')
+    }
+  } catch (error: any) {
+    // Check if it's a network error (backend not running)
+    if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+      throw new Error('Unable to connect to backend service. Please ensure the backend is running.')
+    }
+    throw error
+  }
+}

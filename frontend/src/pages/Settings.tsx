@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Save, User, Lock, Database, Download, LogOut } from 'lucide-react'
-import { logout, getCurrentUser } from '../services/auth'
+import { logout, getCurrentUser, updatePassword } from '../services/auth'
 
 interface UserProfile {
   name: string
@@ -34,6 +34,8 @@ function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saved, setSaved] = useState(false)
   const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   useEffect(() => {
     const user = getCurrentUser()
@@ -58,8 +60,9 @@ function Settings() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError('')
+    setPasswordSuccess(false)
     
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError('All password fields are required')
@@ -76,11 +79,24 @@ function Settings() {
       return
     }
     
-    // TODO: API call to change password
-    alert('Password changed successfully')
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
+    setIsChangingPassword(true)
+    
+    try {
+      // Call the auth service to update password
+      await updatePassword(currentPassword, newPassword)
+      
+      setPasswordSuccess(true)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setPasswordSuccess(false), 5000)
+    } catch (error: any) {
+      setPasswordError(error.message || 'Failed to update password. Please check your current password and try again.')
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   const handleLogout = () => {
@@ -183,6 +199,12 @@ function Settings() {
               </div>
             )}
 
+            {passwordSuccess && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+                Password updated successfully!
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Current Password
@@ -225,10 +247,11 @@ function Settings() {
             <div className="flex justify-end">
               <button
                 onClick={handleChangePassword}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                disabled={isChangingPassword}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
                 <Lock size={18} />
-                Update Password
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </div>
           </div>

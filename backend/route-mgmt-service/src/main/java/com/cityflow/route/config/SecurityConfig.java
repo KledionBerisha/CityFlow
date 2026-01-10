@@ -38,6 +38,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/change-password").authenticated()
                         .requestMatchers(HttpMethod.GET, "/routes/**").hasAuthority("ROLE_routes_read")
                         .requestMatchers(HttpMethod.POST, "/routes/**").hasAuthority("ROLE_routes_write")
                         .requestMatchers(HttpMethod.PUT, "/routes/**").hasAuthority("ROLE_routes_write")
