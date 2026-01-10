@@ -1,0 +1,35 @@
+# Maven
+examples/java/target/
+examples/java/.mvn/
+examples/java/mvnw
+examples/java/mvnw.cmd
+
+# Python
+examples/python/__pycache__/
+examples/python/*.pyc
+examples/python/venv/
+examples/python/.venv/
+examples/python/*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# Environment
+.env
+*.env.local
+
+# Docker volumes
+volumes/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

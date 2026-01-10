@@ -1,0 +1,111 @@
+services:
+  # Spark Master
+  spark-master:
+    image: spark:3.4.1-scala2.12-java11-ubuntu
+    container_name: cityflow-spark-master
+    hostname: spark-master
+    user: root
+    command: >
+      bash -c "
+      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+      --host spark-master
+      --port 7077
+      --webui-port 8080
+      "
+    environment:
+      - SPARK_NO_DAEMONIZE=1
+    ports:
+      - "9090:8080"  # Spark Master Web UI (mapped to 9090 to avoid conflicts)
+      - "7077:7077"  # Spark Master
+    volumes:
+      - ./target:/opt/spark-apps
+      - ./src/main/resources:/opt/spark-config
+      - spark-data:/tmp/cityflow
+    networks:
+      - cityflow-spark-network
+
+  # Spark Worker 1
+  spark-worker-1:
+    image: spark:3.4.1-scala2.12-java11-ubuntu
+    container_name: cityflow-spark-worker-1
+    hostname: spark-worker-1
+    user: root
+    command: >
+      bash -c "
+      sleep 10 &&
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+      --cores 2
+      --memory 2g
+      "
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_NO_DAEMONIZE=1
+    volumes:
+      - ./target:/opt/spark-apps
+      - ./src/main/resources:/opt/spark-config
+      - spark-data:/tmp/cityflow
+    networks:
+      - cityflow-spark-network
+    # ports:  # Disabled to avoid port conflicts
+    #   - "9091:8081"
+
+  # Spark Worker 2
+  spark-worker-2:
+    image: spark:3.4.1-scala2.12-java11-ubuntu
+    container_name: cityflow-spark-worker-2
+    hostname: spark-worker-2
+    user: root
+    command: >
+      bash -c "
+      sleep 10 &&
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+      --cores 2
+      --memory 2g
+      "
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_NO_DAEMONIZE=1
+    volumes:
+      - ./target:/opt/spark-apps
+      - ./src/main/resources:/opt/spark-config
+      - spark-data:/tmp/cityflow
+    networks:
+      - cityflow-spark-network
+    # ports:  # Disabled to avoid port conflicts
+    #   - "9092:8081"
+
+  # Spark History Server (optional)
+  spark-history:
+    image: spark:3.4.1-scala2.12-java11-ubuntu
+    container_name: cityflow-spark-history
+    hostname: spark-history
+    user: root
+    command: >
+      bash -c "
+      mkdir -p /tmp/spark-events &&
+      /opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
+      "
+    environment:
+      - SPARK_NO_DAEMONIZE=1
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/tmp/spark-events
+    ports:
+      - "18080:18080"  # History Server Web UI
+    volumes:
+      - spark-events:/tmp/spark-events
+    networks:
+      - cityflow-spark-network
+
+volumes:
+  spark-data:
+    driver: local
+  spark-events:
+    driver: local
+
+networks:
+  cityflow-spark-network:
+    driver: bridge
+    name: cityflow-spark-network

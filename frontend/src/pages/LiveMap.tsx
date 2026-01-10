@@ -6,10 +6,12 @@ import DataPanel from '../components/DataPanel'
 import LocationPanel from '../components/LocationPanel'
 import BusMarker from '../components/BusMarker'
 import TrafficMarker from '../components/TrafficMarker'
+import { CarMarker } from '../components/CarMarker'
 import { useMapData } from '../hooks/useMapData'
 import { useBusLocations } from '../hooks/useBusLocations'
 import { useTrafficReadings } from '../hooks/useTrafficReadings'
 import { useRoadOverlays } from '../hooks/useRoadOverlays'
+import { useCarLocations } from '../hooks/useCarLocations'
 import { getRoadTrafficData, RoadTrafficData } from '../services/api'
 
 // Fix for default marker icons in React Leaflet
@@ -50,6 +52,81 @@ function MapController() {
   return null
 }
 
+// Helper function to validate GeoJSON geometry
+function isValidGeometry(geometry: any): boolean {
+  if (!geometry || !geometry.type || !geometry.coordinates) {
+    return false
+  }
+  
+  // Check that coordinates is an array
+  if (!Array.isArray(geometry.coordinates)) {
+    return false
+  }
+  
+  // LineString must have at least 2 points with valid numbers
+  if (geometry.type === 'LineString') {
+    if (geometry.coordinates.length < 2) {
+      return false
+    }
+    // Validate each coordinate pair has valid numbers
+    return geometry.coordinates.every((coord: any) => 
+      Array.isArray(coord) && 
+      coord.length >= 2 && 
+      typeof coord[0] === 'number' && 
+      typeof coord[1] === 'number' &&
+      !isNaN(coord[0]) && 
+      !isNaN(coord[1])
+    )
+  }
+  
+  // Point must have valid coordinates
+  if (geometry.type === 'Point') {
+    return geometry.coordinates.length >= 2 &&
+      typeof geometry.coordinates[0] === 'number' &&
+      typeof geometry.coordinates[1] === 'number' &&
+      !isNaN(geometry.coordinates[0]) &&
+      !isNaN(geometry.coordinates[1])
+  }
+  
+  return false
+}
+
+// Style function for roads based on traffic
+function getRoadStyle(congestionLevel: string) {
+  let color = '#FFD700' // Default yellow
+  let weight = 4
+
+  switch (congestionLevel) {
+    case 'SEVERE':
+      color = '#dc2626' // Red for heavy traffic
+      weight = 6
+      break
+    case 'HIGH':
+      color = '#ea580c' // Orange
+      weight = 5
+      break
+    case 'MODERATE':
+      color = '#eab308' // Yellow
+      weight = 4
+      break
+    case 'LOW':
+      color = '#22c55e' // Green
+      weight = 3
+      break
+    default:
+      color = '#808080' // Gray
+      weight = 3
+  }
+
+  return {
+    color,
+    weight,
+    opacity: 0.9,
+    fillColor: color,
+    fillOpacity: 0.3,
+  }
+}
+
 // Component to render road overlays with traffic-based colors
 function RoadOverlays() {
   const basicRoadData = useRoadOverlays()
@@ -75,48 +152,14 @@ function RoadOverlays() {
     return () => clearInterval(interval)
   }, [])
 
-  // If we have traffic data, use it with colors
-  if (trafficRoadData && trafficRoadData.length > 0) {
+  // Filter out roads with invalid geometries
+  const validTrafficRoads = trafficRoadData.filter(road => isValidGeometry(road.geometry))
 
-  // Style function for roads based on traffic
-  const getRoadStyle = (road: RoadTrafficData) => {
-    let color = '#FFD700' // Default yellow
-    let weight = 4
-
-    switch (road.congestionLevel) {
-      case 'SEVERE':
-        color = '#dc2626' // Red for heavy traffic
-        weight = 6
-        break
-      case 'HIGH':
-        color = '#ea580c' // Orange
-        weight = 5
-        break
-      case 'MODERATE':
-        color = '#eab308' // Yellow
-        weight = 4
-        break
-      case 'LOW':
-        color = '#22c55e' // Green
-        weight = 3
-        break
-      default:
-        color = '#808080' // Gray
-        weight = 3
-    }
-
-    return {
-      color,
-      weight,
-      opacity: 0.9,
-      fillColor: color,
-      fillOpacity: 0.3,
-    }
-  }
-
+  // If we have valid traffic data, use it with colors
+  if (validTrafficRoads.length > 0) {
     return (
       <>
-        {trafficRoadData.map((road) => (
+        {validTrafficRoads.map((road) => (
           <GeoJSON
             key={road.roadId}
             data={{
@@ -129,7 +172,7 @@ function RoadOverlays() {
                 vehicleCount: road.vehicleCount,
               },
             }}
-            style={() => getRoadStyle(road)}
+            style={() => getRoadStyle(road.congestionLevel)}
           />
         ))}
       </>
@@ -141,7 +184,22 @@ function RoadOverlays() {
     return null
   }
   
-  const roadStyle = () => ({
+  // Filter basic road data as well
+  const validBasicRoads = basicRoadData.filter((road: any) => {
+    if (!road) return false
+    // If it's a Feature, check the geometry
+    if (road.type === 'Feature') {
+      return isValidGeometry(road.geometry)
+    }
+    // If it's a geometry directly
+    return isValidGeometry(road)
+  })
+  
+  if (validBasicRoads.length === 0) {
+    return null
+  }
+  
+  const basicRoadStyle = () => ({
     color: '#FFD700', // Yellow outline
     weight: 4,
     opacity: 1,
@@ -151,11 +209,11 @@ function RoadOverlays() {
   
   return (
     <>
-      {basicRoadData.map((road, index) => (
+      {validBasicRoads.map((road: any, index: number) => (
         <GeoJSON
           key={index}
           data={road}
-          style={roadStyle}
+          style={basicRoadStyle}
         />
       ))}
     </>
@@ -166,6 +224,8 @@ function LiveMap() {
   const { currentTime, vehicleCount, accidents, location } = useMapData()
   const { busLocations } = useBusLocations()
   const { trafficReadings } = useTrafficReadings()
+  const { carLocations } = useCarLocations()
+  const [showCars, setShowCars] = useState(true)
 
   return (
     <div className="relative w-full h-full">
@@ -181,6 +241,11 @@ function LiveMap() {
         />
         <MapController />
         <RoadOverlays />
+        
+        {/* Car Markers - Traffic Flow */}
+        {showCars && carLocations.map((car) => (
+          <CarMarker key={car.carId} location={car} />
+        ))}
         
         {/* Bus Markers */}
         {busLocations.map((bus) => (
@@ -221,6 +286,19 @@ function LiveMap() {
       {/* Location Panel - Bottom Right */}
       <div className="absolute bottom-4 right-4 z-[1000]">
         <LocationPanel location={location} />
+      </div>
+
+      {/* Layer Controls - Top Left */}
+      <div className="absolute top-4 left-14 z-[1000] bg-white rounded-lg shadow p-2">
+        <label className="flex items-center gap-2 cursor-pointer text-sm">
+          <input
+            type="checkbox"
+            checked={showCars}
+            onChange={(e) => setShowCars(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span>🚗 Cars ({carLocations.length})</span>
+        </label>
       </div>
     </div>
   )

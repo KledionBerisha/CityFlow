@@ -18,6 +18,8 @@ public class BusLocationResponse {
     private String nextStopId;
     private Double distanceToNextStopKm;
     private Integer estimatedArrivalSeconds;
+    private String lineNumber;
+    private String routeName;
 
     public BusLocationResponse() {
     }
@@ -41,6 +43,8 @@ public class BusLocationResponse {
         private String nextStopId;
         private Double distanceToNextStopKm;
         private Integer estimatedArrivalSeconds;
+        private String lineNumber;
+        private String routeName;
 
         public BusLocationResponseBuilder id(String id) { this.id = id; return this; }
         public BusLocationResponseBuilder busId(String busId) { this.busId = busId; return this; }
@@ -56,6 +60,8 @@ public class BusLocationResponse {
         public BusLocationResponseBuilder nextStopId(String nextStopId) { this.nextStopId = nextStopId; return this; }
         public BusLocationResponseBuilder distanceToNextStopKm(Double distanceToNextStopKm) { this.distanceToNextStopKm = distanceToNextStopKm; return this; }
         public BusLocationResponseBuilder estimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; return this; }
+        public BusLocationResponseBuilder lineNumber(String lineNumber) { this.lineNumber = lineNumber; return this; }
+        public BusLocationResponseBuilder routeName(String routeName) { this.routeName = routeName; return this; }
 
         public BusLocationResponse build() {
             BusLocationResponse response = new BusLocationResponse();
@@ -73,6 +79,8 @@ public class BusLocationResponse {
             response.nextStopId = this.nextStopId;
             response.distanceToNextStopKm = this.distanceToNextStopKm;
             response.estimatedArrivalSeconds = this.estimatedArrivalSeconds;
+            response.lineNumber = this.lineNumber;
+            response.routeName = this.routeName;
             return response;
         }
     }
@@ -118,4 +126,10 @@ public class BusLocationResponse {
 
     public Integer getEstimatedArrivalSeconds() { return estimatedArrivalSeconds; }
     public void setEstimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; }
+
+    public String getLineNumber() { return lineNumber; }
+    public void setLineNumber(String lineNumber) { this.lineNumber = lineNumber; }
+
+    public String getRouteName() { return routeName; }
+    public void setRouteName(String routeName) { this.routeName = routeName; }
 }

@@ -35,6 +35,10 @@ public class CarLocation {
     // Traffic flow metrics
     private Double trafficDensity;  // Cars per km² in nearby area
     private Double congestionLevel; // 0.0 (free) to 1.0 (gridlock)
+    
+    // Road information
+    private String roadId;
+    private String roadName;
 
     public enum LocationSource {
         GPS,
@@ -48,7 +52,7 @@ public class CarLocation {
 
     public CarLocation(String id, String carId, String vehicleId, Double latitude, Double longitude,
                        Double speedKmh, Double heading, Instant timestamp, LocationSource source,
-                       Double trafficDensity, Double congestionLevel) {
+                       Double trafficDensity, Double congestionLevel, String roadId, String roadName) {
         this.id = id;
         this.carId = carId;
         this.vehicleId = vehicleId;
@@ -60,6 +64,8 @@ public class CarLocation {
         this.source = source;
         this.trafficDensity = trafficDensity;
         this.congestionLevel = congestionLevel;
+        this.roadId = roadId;
+        this.roadName = roadName;
     }
 
     // Builder
@@ -79,6 +85,8 @@ public class CarLocation {
         private LocationSource source;
         private Double trafficDensity;
         private Double congestionLevel;
+        private String roadId;
+        private String roadName;
 
         public CarLocationBuilder id(String id) { this.id = id; return this; }
         public CarLocationBuilder carId(String carId) { this.carId = carId; return this; }
@@ -91,10 +99,12 @@ public class CarLocation {
         public CarLocationBuilder source(LocationSource source) { this.source = source; return this; }
         public CarLocationBuilder trafficDensity(Double trafficDensity) { this.trafficDensity = trafficDensity; return this; }
         public CarLocationBuilder congestionLevel(Double congestionLevel) { this.congestionLevel = congestionLevel; return this; }
+        public CarLocationBuilder roadId(String roadId) { this.roadId = roadId; return this; }
+        public CarLocationBuilder roadName(String roadName) { this.roadName = roadName; return this; }
 
         public CarLocation build() {
             return new CarLocation(id, carId, vehicleId, latitude, longitude, speedKmh, heading,
-                    timestamp, source, trafficDensity, congestionLevel);
+                    timestamp, source, trafficDensity, congestionLevel, roadId, roadName);
         }
     }
 
@@ -131,5 +141,11 @@ public class CarLocation {
 
     public Double getCongestionLevel() { return congestionLevel; }
     public void setCongestionLevel(Double congestionLevel) { this.congestionLevel = congestionLevel; }
+
+    public String getRoadId() { return roadId; }
+    public void setRoadId(String roadId) { this.roadId = roadId; }
+
+    public String getRoadName() { return roadName; }
+    public void setRoadName(String roadName) { this.roadName = roadName; }
 }
 

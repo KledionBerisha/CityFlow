@@ -42,11 +42,16 @@ public class BusLocation {
     private Integer estimatedArrivalSeconds;
 
     private LocationSource source;
+    
+    // Prishtina bus line information
+    private String lineNumber;  // e.g., "1", "1A", "3", "4"
+    private String routeName;   // e.g., "Linja 1: Qendra - Veternik"
 
     public enum LocationSource {
         GPS,
         SIMULATOR,
-        MANUAL
+        MANUAL,
+        EXTERNAL_API
     }
 
     // Constructors
@@ -55,7 +60,8 @@ public class BusLocation {
 
     public BusLocation(String id, String busId, String vehicleId, UUID routeId, Double latitude, Double longitude,
                        Double speedKmh, Double heading, Instant timestamp, Integer occupancy, String nextStopId,
-                       Double distanceToNextStopKm, Integer estimatedArrivalSeconds, LocationSource source) {
+                       Double distanceToNextStopKm, Integer estimatedArrivalSeconds, LocationSource source,
+                       String lineNumber, String routeName) {
         this.id = id;
         this.busId = busId;
         this.vehicleId = vehicleId;
@@ -70,6 +76,8 @@ public class BusLocation {
         this.distanceToNextStopKm = distanceToNextStopKm;
         this.estimatedArrivalSeconds = estimatedArrivalSeconds;
         this.source = source;
+        this.lineNumber = lineNumber;
+        this.routeName = routeName;
     }
 
     // Builder
@@ -92,6 +100,8 @@ public class BusLocation {
         private Double distanceToNextStopKm;
         private Integer estimatedArrivalSeconds;
         private LocationSource source;
+        private String lineNumber;
+        private String routeName;
 
         public BusLocationBuilder id(String id) { this.id = id; return this; }
         public BusLocationBuilder busId(String busId) { this.busId = busId; return this; }
@@ -107,10 +117,13 @@ public class BusLocation {
         public BusLocationBuilder distanceToNextStopKm(Double distanceToNextStopKm) { this.distanceToNextStopKm = distanceToNextStopKm; return this; }
         public BusLocationBuilder estimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; return this; }
         public BusLocationBuilder source(LocationSource source) { this.source = source; return this; }
+        public BusLocationBuilder lineNumber(String lineNumber) { this.lineNumber = lineNumber; return this; }
+        public BusLocationBuilder routeName(String routeName) { this.routeName = routeName; return this; }
 
         public BusLocation build() {
             return new BusLocation(id, busId, vehicleId, routeId, latitude, longitude, speedKmh, heading,
-                    timestamp, occupancy, nextStopId, distanceToNextStopKm, estimatedArrivalSeconds, source);
+                    timestamp, occupancy, nextStopId, distanceToNextStopKm, estimatedArrivalSeconds, source,
+                    lineNumber, routeName);
         }
     }
 
@@ -156,4 +169,10 @@ public class BusLocation {
 
     public LocationSource getSource() { return source; }
     public void setSource(LocationSource source) { this.source = source; }
+
+    public String getLineNumber() { return lineNumber; }
+    public void setLineNumber(String lineNumber) { this.lineNumber = lineNumber; }
+
+    public String getRouteName() { return routeName; }
+    public void setRouteName(String routeName) { this.routeName = routeName; }
 }

@@ -42,13 +42,15 @@ function TrafficMarker({ reading }: TrafficMarkerProps) {
     >
       <Popup>
         <div className="p-2">
-          <strong>Sensor {reading.sensorId}</strong>
+          <strong>{(reading as any).sensorName || `Sensor ${reading.sensorId}`}</strong>
           <br />
+          <span className="text-xs text-gray-500">{(reading as any).roadSegmentId || ''}</span>
+          <hr className="my-1" />
           Speed: {reading.speedKmh?.toFixed(1)} km/h
           <br />
           Vehicles: {reading.vehicleCount}
           <br />
-          Congestion: {reading.congestionLevel}
+          Congestion: <span style={{ color }}>{reading.congestionLevel}</span>
         </div>
       </Popup>
     </CircleMarker>

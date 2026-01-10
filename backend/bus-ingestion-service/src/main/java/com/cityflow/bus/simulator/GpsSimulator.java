@@ -34,6 +34,7 @@ public class GpsSimulator {
     private final KafkaProducerService kafkaProducerService;
     private final RouteServiceClient routeServiceClient;
     private final boolean simulatorEnabled;
+    private final String simulatorMode;
     private final double speedKmh;
     private final int intervalMs;
     private final int stopWaitTimeSeconds;
@@ -50,6 +51,7 @@ public class GpsSimulator {
             KafkaProducerService kafkaProducerService,
             RouteServiceClient routeServiceClient,
             @Value("${app.simulator.enabled:true}") boolean simulatorEnabled,
+            @Value("${app.simulator.mode:prishtina}") String simulatorMode,
             @Value("${app.simulator.speed-kmh:40}") double speedKmh,
             @Value("${app.simulator.interval-ms:5000}") int intervalMs,
             @Value("${app.simulator.stop-wait-seconds:30}") int stopWaitTimeSeconds) {
@@ -59,6 +61,7 @@ public class GpsSimulator {
         this.kafkaProducerService = kafkaProducerService;
         this.routeServiceClient = routeServiceClient;
         this.simulatorEnabled = simulatorEnabled;
+        this.simulatorMode = simulatorMode;
         this.speedKmh = speedKmh;
         this.intervalMs = intervalMs;
         this.stopWaitTimeSeconds = stopWaitTimeSeconds;
@@ -66,14 +69,15 @@ public class GpsSimulator {
 
     /**
      * Run simulation every configured interval
+     * Only runs in 'generic' mode - for Prishtina routes, use PrishtinaBusSimulator
      */
     @Scheduled(fixedDelayString = "${app.simulator.interval-ms:5000}")
     public void simulateGpsUpdates() {
-        if (!simulatorEnabled) {
-            return;
+        if (!simulatorEnabled || !"generic".equalsIgnoreCase(simulatorMode)) {
+            return; // Skip if disabled or using Prishtina simulator
         }
 
-        log.debug("Running GPS simulation cycle");
+        log.debug("Running GPS simulation cycle (generic mode)");
 
         busRepository.findByStatus(Bus.BusStatus.ACTIVE)
                 .flatMap(this::simulateBusMovement)
@@ -238,7 +242,7 @@ public class GpsSimulator {
             List<RouteStopWithCoordinates> routeStops) {
         RouteStopWithCoordinates nextStop = state.getNextStop(routeStops);
         double distanceToNextStop = state.getDistanceToNextStop(routeStops);
-        int etaSeconds = nextStop != null && speed > 0 ? (int) ((distanceToNextStop / speed) * 3600) : null;
+        Integer etaSeconds = (nextStop != null && speed > 0) ? (int) ((distanceToNextStop / speed) * 3600) : null;
 
         BusLocation location = BusLocation.builder()
                 .busId(bus.getId())

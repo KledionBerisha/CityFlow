@@ -1,0 +1,173 @@
+{
+  "type": "record",
+  "name": "SensorStatusEvent",
+  "namespace": "com.cityflow.events.sensor",
+  "doc": "Traffic sensor status change event for monitoring and maintenance",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID v4)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "SENSOR_STATUS_CHANGE",
+      "doc": "Event type identifier"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event generation timestamp in epoch milliseconds"
+    },
+    {
+      "name": "sensorId",
+      "type": "string",
+      "doc": "Unique sensor identifier (MongoDB ObjectId)"
+    },
+    {
+      "name": "sensorCode",
+      "type": "string",
+      "doc": "Human-readable sensor code (e.g., SENSOR-001)"
+    },
+    {
+      "name": "sensorType",
+      "type": {
+        "type": "enum",
+        "name": "SensorType",
+        "symbols": ["SPEED", "COUNT", "CAMERA", "LOOP_DETECTOR", "RADAR", "LIDAR"]
+      },
+      "doc": "Type of sensor hardware"
+    },
+    {
+      "name": "location",
+      "type": {
+        "type": "record",
+        "name": "SensorLocation",
+        "fields": [
+          {
+            "name": "latitude",
+            "type": "double",
+            "doc": "Sensor latitude in decimal degrees"
+          },
+          {
+            "name": "longitude",
+            "type": "double",
+            "doc": "Sensor longitude in decimal degrees"
+          },
+          {
+            "name": "address",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Human-readable address"
+          }
+        ]
+      },
+      "doc": "Geographic location of the sensor"
+    },
+    {
+      "name": "roadSegmentId",
+      "type": "string",
+      "doc": "Road segment identifier where sensor is installed"
+    },
+    {
+      "name": "oldStatus",
+      "type": {
+        "type": "enum",
+        "name": "SensorStatus",
+        "symbols": ["ACTIVE", "INACTIVE", "MAINTENANCE", "ERROR", "OFFLINE"]
+      },
+      "doc": "Previous operational status"
+    },
+    {
+      "name": "newStatus",
+      "type": {
+        "type": "enum",
+        "name": "SensorStatusNew",
+        "symbols": ["ACTIVE", "INACTIVE", "MAINTENANCE", "ERROR", "OFFLINE"]
+      },
+      "doc": "Current operational status"
+    },
+    {
+      "name": "reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for status change"
+    },
+    {
+      "name": "healthMetrics",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "SensorHealthMetrics",
+          "fields": [
+            {
+              "name": "batteryLevel",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Battery level percentage (0.0 to 100.0)"
+            },
+            {
+              "name": "signalStrength",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Signal strength percentage (0.0 to 100.0)"
+            },
+            {
+              "name": "temperature",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Device temperature in Celsius"
+            },
+            {
+              "name": "errorCount",
+              "type": ["null", "int"],
+              "default": null,
+              "doc": "Number of errors in the last period"
+            },
+            {
+              "name": "lastMaintenanceDate",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ],
+              "default": null,
+              "doc": "Timestamp of last maintenance"
+            }
+          ]
+        }
+      ],
+      "default": null,
+      "doc": "Health and diagnostic metrics"
+    },
+    {
+      "name": "alertLevel",
+      "type": {
+        "type": "enum",
+        "name": "AlertLevel",
+        "symbols": ["INFO", "WARNING", "ERROR", "CRITICAL"]
+      },
+      "default": "INFO",
+      "doc": "Alert level for this status change"
+    },
+    {
+      "name": "metadata",
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": "string"
+        }
+      ],
+      "default": null,
+      "doc": "Additional metadata key-value pairs"
+    }
+  ]
+}

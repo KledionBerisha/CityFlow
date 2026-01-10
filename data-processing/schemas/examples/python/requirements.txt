@@ -1,0 +1,9 @@
+# Kafka and Avro dependencies for Python examples
+confluent-kafka[avro]==2.3.0
+avro-python3==1.11.3
+fastavro==1.9.3
+requests==2.31.0
+
+# Optional: For enhanced functionality
+python-dotenv==1.0.0
+colorlog==6.8.0

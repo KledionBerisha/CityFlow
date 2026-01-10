@@ -20,6 +20,8 @@ public class BusLocationCache {
     private String nextStopId;
     private Double distanceToNextStopKm;
     private Integer estimatedArrivalSeconds;
+    private String lineNumber;
+    private String routeName;
 
     // Constructors
     public BusLocationCache() {
@@ -27,7 +29,8 @@ public class BusLocationCache {
 
     public BusLocationCache(String busId, String vehicleId, UUID routeId, Double latitude, Double longitude,
                             Double speedKmh, Double heading, Instant timestamp, String status,
-                            String nextStopId, Double distanceToNextStopKm, Integer estimatedArrivalSeconds) {
+                            String nextStopId, Double distanceToNextStopKm, Integer estimatedArrivalSeconds,
+                            String lineNumber, String routeName) {
         this.busId = busId;
         this.vehicleId = vehicleId;
         this.routeId = routeId;
@@ -40,6 +43,8 @@ public class BusLocationCache {
         this.nextStopId = nextStopId;
         this.distanceToNextStopKm = distanceToNextStopKm;
         this.estimatedArrivalSeconds = estimatedArrivalSeconds;
+        this.lineNumber = lineNumber;
+        this.routeName = routeName;
     }
 
     // Builder
@@ -60,6 +65,8 @@ public class BusLocationCache {
         private String nextStopId;
         private Double distanceToNextStopKm;
         private Integer estimatedArrivalSeconds;
+        private String lineNumber;
+        private String routeName;
 
         public BusLocationCacheBuilder busId(String busId) { this.busId = busId; return this; }
         public BusLocationCacheBuilder vehicleId(String vehicleId) { this.vehicleId = vehicleId; return this; }
@@ -73,10 +80,12 @@ public class BusLocationCache {
         public BusLocationCacheBuilder nextStopId(String nextStopId) { this.nextStopId = nextStopId; return this; }
         public BusLocationCacheBuilder distanceToNextStopKm(Double distanceToNextStopKm) { this.distanceToNextStopKm = distanceToNextStopKm; return this; }
         public BusLocationCacheBuilder estimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; return this; }
+        public BusLocationCacheBuilder lineNumber(String lineNumber) { this.lineNumber = lineNumber; return this; }
+        public BusLocationCacheBuilder routeName(String routeName) { this.routeName = routeName; return this; }
 
         public BusLocationCache build() {
             return new BusLocationCache(busId, vehicleId, routeId, latitude, longitude, speedKmh, heading, timestamp, status,
-                    nextStopId, distanceToNextStopKm, estimatedArrivalSeconds);
+                    nextStopId, distanceToNextStopKm, estimatedArrivalSeconds, lineNumber, routeName);
         }
     }
 
@@ -116,4 +125,10 @@ public class BusLocationCache {
 
     public Integer getEstimatedArrivalSeconds() { return estimatedArrivalSeconds; }
     public void setEstimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; }
+
+    public String getLineNumber() { return lineNumber; }
+    public void setLineNumber(String lineNumber) { this.lineNumber = lineNumber; }
+
+    public String getRouteName() { return routeName; }
+    public void setRouteName(String routeName) { this.routeName = routeName; }
 }

@@ -1,0 +1,200 @@
+{
+  "type": "record",
+  "name": "IncidentEvent",
+  "namespace": "com.cityflow.events.incident",
+  "doc": "Traffic incident detection and status update event",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID v4)"
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "IncidentEventType",
+        "symbols": ["INCIDENT_DETECTED", "INCIDENT_UPDATED", "INCIDENT_RESOLVED", "INCIDENT_ESCALATED"]
+      },
+      "doc": "Type of incident event"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event generation timestamp in epoch milliseconds"
+    },
+    {
+      "name": "incidentId",
+      "type": "string",
+      "doc": "Unique incident identifier (MongoDB ObjectId)"
+    },
+    {
+      "name": "incidentCode",
+      "type": "string",
+      "doc": "Human-readable incident code (e.g., INC-2026-0042)"
+    },
+    {
+      "name": "type",
+      "type": {
+        "type": "enum",
+        "name": "IncidentType",
+        "symbols": ["ACCIDENT", "CONGESTION", "ROAD_WORK", "BREAKDOWN", "HAZARD", "WEATHER", "EVENT", "OTHER"]
+      },
+      "doc": "Category of the incident"
+    },
+    {
+      "name": "severity",
+      "type": {
+        "type": "enum",
+        "name": "IncidentSeverity",
+        "symbols": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+      },
+      "doc": "Severity level of the incident"
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "IncidentStatus",
+        "symbols": ["DETECTED", "CONFIRMED", "IN_PROGRESS", "RESOLVED", "FALSE_POSITIVE"]
+      },
+      "doc": "Current status of the incident"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "doc": "Brief incident title"
+    },
+    {
+      "name": "description",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Detailed incident description"
+    },
+    {
+      "name": "location",
+      "type": {
+        "type": "record",
+        "name": "IncidentLocation",
+        "fields": [
+          {
+            "name": "latitude",
+            "type": "double",
+            "doc": "Incident latitude in decimal degrees"
+          },
+          {
+            "name": "longitude",
+            "type": "double",
+            "doc": "Incident longitude in decimal degrees"
+          },
+          {
+            "name": "address",
+            "type": ["null", "string"],
+            "default": null,
+            "doc": "Human-readable address"
+          }
+        ]
+      },
+      "doc": "Geographic location of the incident"
+    },
+    {
+      "name": "roadSegmentId",
+      "type": "string",
+      "doc": "Affected road segment identifier"
+    },
+    {
+      "name": "sourceId",
+      "type": "string",
+      "doc": "Identifier of the source that detected the incident"
+    },
+    {
+      "name": "sourceType",
+      "type": {
+        "type": "enum",
+        "name": "IncidentSourceType",
+        "symbols": ["TRAFFIC_SENSOR", "BUS", "MANUAL_REPORT", "EXTERNAL_API", "ML_DETECTION"]
+      },
+      "doc": "Type of source that detected the incident"
+    },
+    {
+      "name": "detectedAt",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "When the incident was first detected"
+    },
+    {
+      "name": "resolvedAt",
+      "type": [
+        "null",
+        {
+          "type": "long",
+          "logicalType": "timestamp-millis"
+        }
+      ],
+      "default": null,
+      "doc": "When the incident was resolved (if applicable)"
+    },
+    {
+      "name": "confidence",
+      "type": "double",
+      "doc": "Detection confidence score (0.0 to 1.0)"
+    },
+    {
+      "name": "impact",
+      "type": {
+        "type": "record",
+        "name": "IncidentImpact",
+        "fields": [
+          {
+            "name": "affectedVehicles",
+            "type": ["null", "int"],
+            "default": null,
+            "doc": "Estimated number of affected vehicles"
+          },
+          {
+            "name": "affectedBuses",
+            "type": ["null", "int"],
+            "default": null,
+            "doc": "Number of affected buses"
+          },
+          {
+            "name": "estimatedDelayMinutes",
+            "type": ["null", "int"],
+            "default": null,
+            "doc": "Estimated delay caused in minutes"
+          },
+          {
+            "name": "affectedRoutes",
+            "type": [
+              "null",
+              {
+                "type": "array",
+                "items": "string"
+              }
+            ],
+            "default": null,
+            "doc": "List of affected route IDs"
+          }
+        ]
+      },
+      "doc": "Impact assessment of the incident"
+    },
+    {
+      "name": "metadata",
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": "string"
+        }
+      ],
+      "default": null,
+      "doc": "Additional metadata key-value pairs"
+    }
+  ]
+}

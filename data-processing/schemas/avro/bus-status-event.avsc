@@ -1,0 +1,217 @@
+{
+  "type": "record",
+  "name": "BusStatusEvent",
+  "namespace": "com.cityflow.events.transport",
+  "doc": "Bus operational status change event for fleet management and monitoring",
+  "fields": [
+    {
+      "name": "eventId",
+      "type": "string",
+      "doc": "Unique event identifier (UUID v4)"
+    },
+    {
+      "name": "eventType",
+      "type": "string",
+      "default": "BUS_STATUS_CHANGE",
+      "doc": "Event type identifier"
+    },
+    {
+      "name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "Event generation timestamp in epoch milliseconds"
+    },
+    {
+      "name": "busId",
+      "type": "string",
+      "doc": "Unique bus identifier (MongoDB ObjectId)"
+    },
+    {
+      "name": "vehicleId",
+      "type": "string",
+      "doc": "Physical vehicle ID/registration number"
+    },
+    {
+      "name": "busCode",
+      "type": "string",
+      "doc": "Human-readable bus code (e.g., BUS-001)"
+    },
+    {
+      "name": "routeId",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Current route identifier (null if not in service)"
+    },
+    {
+      "name": "location",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "BusStatusLocation",
+          "fields": [
+            {
+              "name": "latitude",
+              "type": "double",
+              "doc": "Current latitude in decimal degrees"
+            },
+            {
+              "name": "longitude",
+              "type": "double",
+              "doc": "Current longitude in decimal degrees"
+            }
+          ]
+        }
+      ],
+      "default": null,
+      "doc": "Current location when status changed"
+    },
+    {
+      "name": "oldStatus",
+      "type": {
+        "type": "enum",
+        "name": "BusStatus",
+        "symbols": ["IN_SERVICE", "OUT_OF_SERVICE", "DELAYED", "STOPPED", "MAINTENANCE", "EMERGENCY", "OFFLINE"]
+      },
+      "doc": "Previous operational status"
+    },
+    {
+      "name": "newStatus",
+      "type": {
+        "type": "enum",
+        "name": "BusStatusNew",
+        "symbols": ["IN_SERVICE", "OUT_OF_SERVICE", "DELAYED", "STOPPED", "MAINTENANCE", "EMERGENCY", "OFFLINE"]
+      },
+      "doc": "Current operational status"
+    },
+    {
+      "name": "reason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for status change"
+    },
+    {
+      "name": "driverInfo",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "DriverInfo",
+          "fields": [
+            {
+              "name": "driverId",
+              "type": "string",
+              "doc": "Unique driver identifier"
+            },
+            {
+              "name": "driverName",
+              "type": ["null", "string"],
+              "default": null,
+              "doc": "Driver name (if available)"
+            },
+            {
+              "name": "shiftStart",
+              "type": [
+                "null",
+                {
+                  "type": "long",
+                  "logicalType": "timestamp-millis"
+                }
+              ],
+              "default": null,
+              "doc": "Current shift start time"
+            }
+          ]
+        }
+      ],
+      "default": null,
+      "doc": "Information about the assigned driver"
+    },
+    {
+      "name": "vehicleMetrics",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "VehicleMetrics",
+          "fields": [
+            {
+              "name": "fuelLevel",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Fuel level percentage (0.0 to 100.0)"
+            },
+            {
+              "name": "engineTemperature",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Engine temperature in Celsius"
+            },
+            {
+              "name": "mileage",
+              "type": ["null", "double"],
+              "default": null,
+              "doc": "Current odometer reading in kilometers"
+            },
+            {
+              "name": "diagnosticCodes",
+              "type": [
+                "null",
+                {
+                  "type": "array",
+                  "items": "string"
+                }
+              ],
+              "default": null,
+              "doc": "Vehicle diagnostic trouble codes (if any)"
+            }
+          ]
+        }
+      ],
+      "default": null,
+      "doc": "Vehicle health and performance metrics"
+    },
+    {
+      "name": "passengerCount",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Current number of passengers on board"
+    },
+    {
+      "name": "delayMinutes",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Current delay in minutes (positive=late, negative=early)"
+    },
+    {
+      "name": "alertLevel",
+      "type": {
+        "type": "enum",
+        "name": "BusAlertLevel",
+        "symbols": ["INFO", "WARNING", "ERROR", "CRITICAL"]
+      },
+      "default": "INFO",
+      "doc": "Alert level for this status change"
+    },
+    {
+      "name": "requiresAttention",
+      "type": "boolean",
+      "default": false,
+      "doc": "Flag indicating if immediate attention is required"
+    },
+    {
+      "name": "metadata",
+      "type": [
+        "null",
+        {
+          "type": "map",
+          "values": "string"
+        }
+      ],
+      "default": null,
+      "doc": "Additional metadata key-value pairs"
+    }
+  ]
+}
