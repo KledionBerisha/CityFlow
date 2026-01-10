@@ -1,17 +1,31 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { LogIn } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 
-function Login() {
+function Register() {
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      alert('Passwords do not match')
+      return
+    }
+
+    if (!acceptTerms) {
+      alert('Please accept the terms and conditions')
+      return
+    }
+
+    setIsLoading(true)
 
     setTimeout(() => {
       setIsLoading(false)
@@ -48,13 +62,27 @@ function Login() {
               <span className="text-cityflow-primary font-bold text-2xl leading-tight">FLOW</span>
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to access your dashboard</p>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Create Account</h1>
+          <p className="text-gray-600">Sign up to get started with CityFlow</p>
         </div>
 
-        
         <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cityflow-primary focus:border-cityflow-primary outline-none transition-colors"
+                placeholder="John Doe"
+              />
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -80,28 +108,49 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={8}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cityflow-primary focus:border-cityflow-primary outline-none transition-colors"
                 placeholder="Enter your password"
               />
+              <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cityflow-primary focus:border-cityflow-primary outline-none transition-colors"
+                placeholder="Confirm your password"
+              />
+            </div>
+
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
                 <input
-                  id="remember"
+                  id="terms"
                   type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  required
                   className="w-4 h-4 text-cityflow-primary border-gray-300 rounded focus:ring-cityflow-primary"
                 />
-                <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
-                  Remember me
-                </label>
               </div>
-              <a
-                href="#"
-                className="text-sm text-cityflow-primary hover:text-cityflow-primary-dark font-medium"
-              >
-                Forgot password?
-              </a>
+              <label htmlFor="terms" className="ml-2 text-sm text-gray-600">
+                I agree to the{' '}
+                <a href="#" className="text-cityflow-primary hover:text-cityflow-primary-dark font-medium">
+                  Terms and Conditions
+                </a>{' '}
+                and{' '}
+                <a href="#" className="text-cityflow-primary hover:text-cityflow-primary-dark font-medium">
+                  Privacy Policy
+                </a>
+              </label>
             </div>
 
             <button
@@ -131,12 +180,12 @@ function Login() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
                 <>
-                  <LogIn size={20} />
-                  Sign In
+                  <UserPlus size={20} />
+                  Create Account
                 </>
               )}
             </button>
@@ -144,9 +193,9 @@ function Login() {
         </div>
 
         <p className="text-center text-sm text-gray-600 mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-cityflow-primary hover:text-cityflow-primary-dark font-medium">
-            Create One
+          Already have an account?{' '}
+          <Link to="/login" className="text-cityflow-primary hover:text-cityflow-primary-dark font-medium">
+            Sign In
           </Link>
         </p>
       </div>
@@ -154,4 +203,4 @@ function Login() {
   )
 }
 
-export default Login
+export default Register
