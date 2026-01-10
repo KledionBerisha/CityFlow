@@ -1,22 +1,28 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { LogIn } from 'lucide-react'
+import { login } from '../services/auth'
 
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
     
-
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      await login({ email, password })
+      // Login successful, navigate to dashboard
       navigate('/dashboard')
-    }, 1000)
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.')
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -54,6 +60,12 @@ function Login() {
 
         
         <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

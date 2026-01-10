@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
+import { register } from '../services/auth'
 
 function Register() {
   const [name, setName] = useState('')
@@ -9,28 +10,44 @@ function Register() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     
     // Validate passwords match
     if (password !== confirmPassword) {
-      alert('Passwords do not match')
+      setError('Passwords do not match')
       return
     }
 
     if (!acceptTerms) {
-      alert('Please accept the terms and conditions')
+      setError('Please accept the terms and conditions')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
       return
     }
 
     setIsLoading(true)
 
-    setTimeout(() => {
+    try {
+      await register({ name, email, password })
+      setSuccess(true)
+      
+      // Redirect to login after successful registration
+      setTimeout(() => {
+        navigate('/login')
+      }, 2000)
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.')
       setIsLoading(false)
-      navigate('/dashboard')
-    }, 1000)
+    }
   }
 
   return (
@@ -67,6 +84,18 @@ function Register() {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+              Registration successful! Redirecting to login...
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">

@@ -36,6 +36,9 @@ public class SecurityConfig {
                     // Public paths
                     exchange.pathMatchers("/actuator/health", "/actuator/info").permitAll();
                     
+                    // Auth endpoints - public for registration
+                    exchange.pathMatchers(HttpMethod.POST, "/api/auth/register").permitAll();
+                    
                     // Bus Service - Read operations
                     exchange.pathMatchers(HttpMethod.GET, "/api/buses/**").hasAuthority("ROLE_bus_read");
                     exchange.pathMatchers(HttpMethod.GET, "/api/bus-locations/**").hasAuthority("ROLE_bus_read");

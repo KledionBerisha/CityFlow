@@ -4,7 +4,7 @@
  * This file contains all API functions that connect to the backend.
  * Replace the placeholder implementations with actual fetch calls when backend is ready.
  * 
- * Base URL: http://localhost:8000/api (via Vite proxy)
+ * Base URL: http://localhost:8081/api (via Vite proxy)
  */
 
 const API_BASE_URL = '/api'
