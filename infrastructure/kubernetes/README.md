@@ -257,14 +257,19 @@ kubectl get pods -n cityflow -o yaml | grep prometheus.io
 9. **Use Secrets** instead of ConfigMaps for sensitive data
 10. **Enable Pod Security Policies** or Pod Security Standards
 
-## CI/CD Integration
+## Deployment
 
-The GitHub Actions workflow (`.github/workflows/ci-cd.yml`) automatically:
-- Builds Docker images
-- Pushes to container registry
-- Deploys to Kubernetes using Helm (on main branch)
+Deploy to Kubernetes using Helm manually:
 
-To enable automatic deployment:
-1. Set up Kubernetes cluster credentials as GitHub secrets
-2. Update `KUBECONFIG` secret in GitHub repository settings
-3. Push to `main` branch to trigger deployment
+```bash
+# Build and push Docker images first
+docker build -t your-registry/cityflow/api-gateway:latest ./backend/api-gateway
+docker push your-registry/cityflow/api-gateway:latest
+
+# Then deploy with Helm
+helm install cityflow ./infrastructure/kubernetes/helm-charts/cityflow \
+  --namespace cityflow \
+  --create-namespace \
+  --set image.registry=your-registry \
+  --set image.tag=latest
+```

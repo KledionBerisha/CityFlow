@@ -2,32 +2,7 @@
 
 ## ✅ What's Been Implemented
 
-### 1. ✅ CI/CD Pipeline (GitHub Actions)
-
-**File:** `.github/workflows/ci-cd.yml`
-
-**Features:**
-- ✅ Builds all 8 backend services (Maven)
-- ✅ Builds ML service (Python)
-- ✅ Builds frontend (npm)
-- ✅ Runs integration tests
-- ✅ Builds Docker images
-- ✅ Pushes to container registry
-- ✅ Auto-deploys to Kubernetes (main branch)
-
-**How to Use:**
-```bash
-# Push to GitHub to trigger
-git add .
-git commit -m "Your changes"
-git push origin main
-
-# View in GitHub Actions tab
-```
-
----
-
-### 2. ✅ Grafana Monitoring
+### 1. ✅ Grafana Monitoring
 
 **Files:**
 - `infrastructure/monitoring/prometheus/prometheus.yml` - Prometheus config
@@ -61,7 +36,7 @@ docker-compose up -d prometheus grafana
 
 ---
 
-### 3. ✅ Kubernetes Deployment
+### 2. ✅ Kubernetes Deployment
 
 **Files:**
 - `infrastructure/kubernetes/k8s-manifest/*.yaml` - Raw K8s manifests
@@ -154,12 +129,14 @@ kubectl logs -n cityflow -l app=api-gateway -f
 
 ## ✅ Verification
 
-### Check CI/CD Pipeline
+### Check Services Status
 
 ```bash
-# View workflow status in GitHub Actions tab
-# Or check locally (if using act):
-act -l
+# Check Docker containers
+docker-compose ps
+
+# Check Kubernetes pods (if deployed)
+kubectl get pods -n cityflow
 ```
 
 ### Check Monitoring
@@ -204,7 +181,7 @@ helm list -n cityflow
 
 ## 🎯 Next Steps
 
-1. ✅ **Push to GitHub** - CI/CD will trigger automatically
+1. ✅ **Start services** - Docker Compose or Kubernetes deployment
 2. ✅ **Start monitoring** - `.\scripts\start-monitoring.ps1`
 3. ✅ **Access Grafana** - http://localhost:3001
 4. ✅ **Deploy to K8s** - When ready for production
@@ -215,10 +192,10 @@ helm list -n cityflow
 
 ## 🎉 Summary
 
-**All CI/CD, Grafana, and Kubernetes infrastructure is now implemented and ready to use!**
+**All Grafana and Kubernetes infrastructure is now implemented and ready to use!**
 
 **What you can do:**
-- ✅ Push code to GitHub → Automatic build & deploy
+- ✅ Deploy with Docker Compose or Kubernetes
 - ✅ Monitor system with Grafana dashboards
 - ✅ Deploy to Kubernetes with Helm
 - ✅ Auto-scale services based on load

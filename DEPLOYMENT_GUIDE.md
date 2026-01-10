@@ -1,6 +1,6 @@
-# CityFlow - Deployment Guide (CI/CD + Grafana + Kubernetes)
+# CityFlow - Deployment Guide (Grafana + Kubernetes)
 
-This guide covers deploying CityFlow with CI/CD pipelines, Grafana monitoring, and Kubernetes orchestration.
+This guide covers deploying CityFlow with Grafana monitoring and Kubernetes orchestration.
 
 ## 🚀 Quick Start
 
@@ -33,52 +33,6 @@ helm install cityflow ./infrastructure/kubernetes/helm-charts/cityflow \
 helm upgrade cityflow ./infrastructure/kubernetes/helm-charts/cityflow \
   --namespace cityflow \
   --set image.tag=v1.0.0
-```
-
----
-
-## 📋 CI/CD Pipeline (GitHub Actions)
-
-### Overview
-
-The CI/CD pipeline (`.github/workflows/ci-cd.yml`) includes:
-
-1. **Build Backend Services** - Maven build and test for all 8 Spring Boot services
-2. **Build ML Service** - Python tests and Docker build
-3. **Build Frontend** - npm build and Docker build
-4. **Integration Tests** - Docker Compose integration testing
-5. **Deploy to Kubernetes** - Helm deployment (main branch only)
-
-### Pipeline Triggers
-
-- **Push to `main` or `develop`**: Full build, test, and deploy
-- **Pull Request**: Build and test only (no deployment)
-
-### Setup GitHub Actions
-
-1. **Push to GitHub repository:**
-   ```bash
-   git add .github/workflows/ci-cd.yml
-   git commit -m "Add CI/CD pipeline"
-   git push
-   ```
-
-2. **Configure Kubernetes secrets** (for deployment):
-   - Go to GitHub Repository → Settings → Secrets
-   - Add `KUBECONFIG` secret with your Kubernetes cluster config (base64 encoded)
-
-3. **Container Registry** (optional):
-   - Default: GitHub Container Registry (`ghcr.io`)
-   - Update `REGISTRY` and `IMAGE_PREFIX` in workflow if using different registry
-
-### Manual Pipeline Run
-
-```bash
-# Test locally with act (optional)
-act -j build-backend
-
-# Or use GitHub CLI
-gh workflow run ci-cd.yml
 ```
 
 ---
@@ -429,15 +383,7 @@ docker-compose logs -f api-gateway
 Invoke-WebRequest -Uri "http://localhost:8000/api/health"
 ```
 
-### Production Workflow (CI/CD)
-
-1. **Push to `main` branch** → Triggers CI/CD pipeline
-2. **Build & Test** → All services built and tested
-3. **Integration Tests** → Docker Compose integration tests
-4. **Push Images** → Images pushed to container registry
-5. **Deploy to K8s** → Helm deployment to production cluster
-
-### Manual Production Deployment
+### Production Deployment
 
 ```bash
 # 1. Build and push images
@@ -459,16 +405,9 @@ kubectl rollout status deployment/cityflow-api-gateway -n cityflow
 
 ## 🔍 Troubleshooting
 
-### CI/CD Pipeline Issues
+### Kubernetes Deployment Issues
 
-**Problem:** Build fails
-```bash
-# Check workflow logs in GitHub Actions UI
-# Or run locally with act:
-act -j build-backend --verbose
-```
-
-**Problem:** Kubernetes deployment fails
+**Problem:** Deployment fails
 ```bash
 # Check Helm chart syntax
 helm lint ./infrastructure/kubernetes/helm-charts/cityflow

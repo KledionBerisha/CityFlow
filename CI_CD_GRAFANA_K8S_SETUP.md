@@ -1,40 +1,8 @@
-# CityFlow - CI/CD, Grafana & Kubernetes Setup Complete ✅
+# CityFlow - Grafana & Kubernetes Setup Complete ✅
 
 ## 🎉 What's Been Implemented
 
-### 1. ✅ CI/CD Pipeline (GitHub Actions)
-
-**Location:** `.github/workflows/ci-cd.yml`
-
-**Features:**
-- ✅ Automated build for all 8 backend services (Maven)
-- ✅ ML service build and tests (Python/pytest)
-- ✅ Frontend build and linting (npm)
-- ✅ Integration tests with Docker Compose
-- ✅ Automatic Docker image building
-- ✅ Push to container registry (GitHub Container Registry)
-- ✅ Automated Kubernetes deployment with Helm (on main branch)
-
-**How It Works:**
-1. Push to `main` or `develop` → Triggers full pipeline
-2. Pull Request → Build and test only (no deployment)
-3. All services built in parallel
-4. Images tagged with commit SHA and `latest`
-5. On `main` branch: Auto-deploys to Kubernetes
-
-**To Use:**
-```bash
-# Push to GitHub to trigger
-git add .
-git commit -m "Update code"
-git push origin main
-
-# View workflow in GitHub Actions tab
-```
-
----
-
-### 2. ✅ Grafana Monitoring
+### 1. ✅ Grafana Monitoring
 
 **Location:** 
 - Config: `infrastructure/monitoring/prometheus/prometheus.yml`
@@ -82,7 +50,7 @@ docker-compose up -d prometheus grafana
 
 ---
 
-### 3. ✅ Kubernetes Deployment
+### 2. ✅ Kubernetes Deployment
 
 **Location:**
 - Raw Manifests: `infrastructure/kubernetes/k8s-manifest/`
@@ -131,9 +99,6 @@ kubectl apply -f infrastructure/kubernetes/k8s-manifest/api-gateway-deployment.y
 ---
 
 ## 📁 Files Created
-
-### CI/CD
-- `.github/workflows/ci-cd.yml` - GitHub Actions workflow
 
 ### Grafana & Prometheus
 - `infrastructure/monitoring/prometheus/prometheus.yml` - Prometheus config
@@ -322,7 +287,7 @@ All services configured via:
 
 ## 📈 Next Steps
 
-1. **Push to GitHub** to trigger CI/CD pipeline
+1. **Start services** with Docker Compose or Kubernetes
 2. **Start monitoring** with `.\scripts\start-monitoring.ps1`
 3. **Access Grafana** at http://localhost:3001
 4. **Deploy to Kubernetes** when ready for production
@@ -333,7 +298,6 @@ All services configured via:
 
 ## ✅ Verification Checklist
 
-- [x] CI/CD pipeline created (`.github/workflows/ci-cd.yml`)
 - [x] Prometheus configured and added to docker-compose
 - [x] Grafana configured with datasources and dashboards
 - [x] Kubernetes manifests created for all services
@@ -350,24 +314,7 @@ All services configured via:
 
 ## 🎯 What You Can Do Now
 
-### 1. Use CI/CD Pipeline
-
-```bash
-# Push to GitHub to trigger
-git add .
-git commit -m "Add CI/CD, Grafana, and Kubernetes"
-git push origin main
-
-# View in GitHub Actions tab
-# Pipeline will:
-# - Build all services
-# - Run tests
-# - Build Docker images
-# - Push to registry
-# - Deploy to Kubernetes (on main branch)
-```
-
-### 2. Monitor with Grafana
+### 1. Monitor with Grafana
 
 ```powershell
 # Start monitoring
@@ -382,7 +329,7 @@ git push origin main
 # - CityFlow - System Overview
 ```
 
-### 3. Deploy to Kubernetes
+### 2. Deploy to Kubernetes
 
 ```bash
 # With Helm (recommended)
@@ -398,7 +345,6 @@ helm install cityflow ./infrastructure/kubernetes/helm-charts/cityflow \
 
 ## 📝 Notes
 
-- **CI/CD Pipeline:** Automatically triggers on push to `main` or `develop`
 - **Grafana:** Auto-provisions datasources and dashboards on startup
 - **Prometheus:** Auto-discovers pods with `prometheus.io/scrape` annotation
 - **Kubernetes:** Use Helm for production deployments (easier management)
@@ -407,4 +353,4 @@ helm install cityflow ./infrastructure/kubernetes/helm-charts/cityflow \
 
 ---
 
-**All CI/CD, Grafana, and Kubernetes infrastructure is now ready! 🎉**
+**All Grafana and Kubernetes infrastructure is now ready! 🎉**
