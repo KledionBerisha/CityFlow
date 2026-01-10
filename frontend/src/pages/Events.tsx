@@ -25,8 +25,12 @@ function Events() {
   useEffect(() => {
     const fetchIncidents = async () => {
       try {
-        const data = await api.getIncidents()
+        // Use recent incidents (last 24 hours) to match the live map count
+        const data = await api.getRecentIncidents(24)
         setIncidents(data)
+      } catch (error) {
+        console.error('Error fetching incidents:', error)
+        setIncidents([])
       } finally {
         setLoading(false)
       }
@@ -61,64 +65,64 @@ function Events() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Events & Incidents</h1>
-      
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Recent Incidents</h2>
-          <span className="text-sm text-gray-500">
-            Auto-refreshes every 30 seconds
-          </span>
-        </div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Events & Incidents</h1>
         
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Recent Incidents</h2>
+            <span className="text-sm text-gray-500">
+              Auto-refreshes every 30 seconds
+            </span>
           </div>
-        ) : incidents.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-5xl mb-4">✅</div>
-            <p className="text-gray-600 font-medium">No incidents detected</p>
-            <p className="text-sm text-gray-500 mt-2">
-              All traffic conditions are normal. The system will automatically detect and display incidents when they occur.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {incidents.map((incident) => (
-              <div
-                key={incident.id}
-                className={`border rounded-lg p-4 ${getSeverityColor(incident.severity)}`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span>{getStatusIcon(incident.status)}</span>
-                      <span className="font-semibold">{incident.title || incident.type}</span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-white/50">
-                        {incident.severity}
-                      </span>
+          
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : incidents.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-5xl mb-4">✅</div>
+              <p className="text-gray-600 font-medium">No incidents detected</p>
+              <p className="text-sm text-gray-500 mt-2">
+                All traffic conditions are normal. The system will automatically detect and display incidents when they occur.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {incidents.map((incident) => (
+                <div
+                  key={incident.id}
+                  className={`border rounded-lg p-4 ${getSeverityColor(incident.severity)}`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span>{getStatusIcon(incident.status)}</span>
+                        <span className="font-semibold">{incident.title || incident.type}</span>
+                        <span className="text-xs px-2 py-0.5 rounded bg-white/50">
+                          {incident.severity}
+                        </span>
+                      </div>
+                      <p className="text-sm mt-1">{incident.description}</p>
+                      <div className="text-xs mt-2 opacity-75">
+                        <span>📍 {incident.roadSegmentId || 'Unknown location'}</span>
+                        <span className="mx-2">•</span>
+                        <span>🕐 {new Date(incident.detectedAt).toLocaleString()}</span>
+                        {incident.confidence && (
+                          <>
+                            <span className="mx-2">•</span>
+                            <span>Confidence: {(incident.confidence * 100).toFixed(0)}%</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm mt-1">{incident.description}</p>
-                    <div className="text-xs mt-2 opacity-75">
-                      <span>📍 {incident.roadSegmentId || 'Unknown location'}</span>
-                      <span className="mx-2">•</span>
-                      <span>🕐 {new Date(incident.detectedAt).toLocaleString()}</span>
-                      {incident.confidence && (
-                        <>
-                          <span className="mx-2">•</span>
-                          <span>Confidence: {(incident.confidence * 100).toFixed(0)}%</span>
-                        </>
-                      )}
-                    </div>
+                    <span className="text-xs font-mono">{incident.incidentCode}</span>
                   </div>
-                  <span className="text-xs font-mono">{incident.incidentCode}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
     </div>
   )
 }

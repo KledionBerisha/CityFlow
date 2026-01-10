@@ -56,6 +56,29 @@ export interface AccidentCountResponse {
 }
 
 /**
+ * Map backend incident response to frontend format
+ * Handles enum values (type, severity, status) that come as strings
+ */
+function mapIncident(incident: any) {
+  return {
+    id: incident.id,
+    incidentCode: incident.incidentCode,
+    type: typeof incident.type === 'string' ? incident.type : incident.type?.toString() || 'UNKNOWN',
+    severity: typeof incident.severity === 'string' ? incident.severity : incident.severity?.toString() || 'LOW',
+    status: typeof incident.status === 'string' ? incident.status : incident.status?.toString() || 'DETECTED',
+    title: incident.title || incident.type || 'Incident',
+    description: incident.description || '',
+    latitude: incident.latitude || 0,
+    longitude: incident.longitude || 0,
+    roadSegmentId: incident.roadSegmentId,
+    sourceId: incident.sourceId,
+    sourceType: incident.sourceType,
+    detectedAt: incident.detectedAt || incident.createdAt || new Date().toISOString(),
+    confidence: incident.confidence,
+  }
+}
+
+/**
  * Get accident count for the last 24 hours
  * Uses the /api/incidents/recent endpoint and counts the results
  */
@@ -75,8 +98,7 @@ export async function getAccidentCount(): Promise<AccidentCountResponse> {
 }
 
 /**
- * Get all incidents
- * TODO: Connect to backend endpoint (e.g., GET /api/incidents)
+ * Get all incidents (all time)
  */
 export async function getIncidents() {
   try {
@@ -84,9 +106,27 @@ export async function getIncidents() {
     if (!response.ok) {
       throw new Error('Failed to fetch incidents')
     }
-    return await response.json()
+    const data = await response.json()
+    return Array.isArray(data) ? data.map(mapIncident) : []
   } catch (error) {
     console.error('Error fetching incidents:', error)
+    return []
+  }
+}
+
+/**
+ * Get recent incidents (last N hours)
+ */
+export async function getRecentIncidents(hoursBack: number = 24) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/incidents/recent?hoursBack=${hoursBack}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch recent incidents')
+    }
+    const data = await response.json()
+    return Array.isArray(data) ? data.map(mapIncident) : []
+  } catch (error) {
+    console.error('Error fetching recent incidents:', error)
     return []
   }
 }
@@ -228,6 +268,7 @@ export interface CongestionDurationResponse {
 /**
  * Predict how long congestion will last on a road segment
  * Uses ML model to estimate duration based on current conditions
+ * Connects through gateway: POST /api/ml/predict/congestion-duration
  */
 export async function predictCongestionDuration(
   request: CongestionDurationRequest
@@ -356,8 +397,9 @@ export interface RoadTrafficData {
     coordinates: number[][]
   }
   congestionLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'SEVERE'
-  averageSpeed: number
-  vehicleCount: number
+  averageSpeed?: number
+  vehicleCount?: number
+  lastUpdated?: string
 }
 
 
@@ -429,11 +471,11 @@ export interface MLPredictionResponse {
 
 /**
  * Get ML-based traffic speed predictions
- * Connects to ML API: POST http://localhost:8090/predict
+ * Connects to ML API through gateway: POST /api/ml/predict
  */
 export async function getMLPredictions(request: MLPredictionRequest): Promise<MLPredictionResponse | null> {
   try {
-    const response = await fetch('http://localhost:8090/predict', {
+    const response = await fetch(`${API_BASE_URL}/ml/predict`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -454,11 +496,11 @@ export async function getMLPredictions(request: MLPredictionRequest): Promise<ML
 
 /**
  * Get predictions for all road segments
- * Connects to ML API: GET http://localhost:8090/predict/all?horizon=30
+ * Connects to ML API through gateway: GET /api/ml/predict/all?horizon=30
  */
 export async function getAllSegmentPredictions(horizon: number = 30): Promise<MLPredictionResponse | null> {
   try {
-    const response = await fetch(`http://localhost:8090/predict/all?horizon=${horizon}`)
+    const response = await fetch(`${API_BASE_URL}/ml/predict/all?horizon=${horizon}`)
     
     if (!response.ok) {
       throw new Error(`ML API error: ${response.status}`)
@@ -472,11 +514,11 @@ export async function getAllSegmentPredictions(horizon: number = 30): Promise<ML
 }
 
 /**
- * Check ML API health
+ * Check ML API health through gateway
  */
 export async function checkMLAPIHealth(): Promise<boolean> {
   try {
-    const response = await fetch('http://localhost:8090/health')
+    const response = await fetch(`${API_BASE_URL}/ml/health`)
     return response.ok
   } catch (error) {
     return false
@@ -484,16 +526,42 @@ export async function checkMLAPIHealth(): Promise<boolean> {
 }
 
 /**
+ * Get congestion hotspots (biggest congestions with predictions and durations)
+ * Returns top congested areas sorted by severity
+ */
+export async function getCongestionHotspots() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ml/predict/congestion-hotspots?horizon=30`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch congestion hotspots')
+    }
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching congestion hotspots:', error)
+    return []
+  }
+}
+
+/**
  * Get traffic predictions (Legacy - for backward compatibility)
- * TODO: Connect to backend endpoint (e.g., GET /api/analytics/predictions)
+ * Uses ML service to get predictions for all segments
  */
 export async function getTrafficPredictions(): Promise<TrafficPrediction[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/analytics/predictions`)
-    if (!response.ok) {
-      throw new Error('Failed to fetch traffic predictions')
+    const predictions = await getAllSegmentPredictions(30)
+    if (!predictions || !predictions.predictions) {
+      return []
     }
-    return await response.json()
+    // Convert ML predictions to legacy format
+    return predictions.predictions.map(p => ({
+      location: { lat: 0, lng: 0 }, // Coordinates would need to be fetched separately
+      predictedSpeed: p.predicted_speed_kmh,
+      predictedCongestion: p.predicted_speed_kmh < 20 ? 'SEVERE' : 
+                          p.predicted_speed_kmh < 35 ? 'HIGH' :
+                          p.predicted_speed_kmh < 50 ? 'MODERATE' : 'LOW',
+      confidence: p.confidence || 0,
+      timeWindow: `${p.prediction_horizon_minutes} minutes`
+    }))
   } catch (error) {
     console.error('Error fetching traffic predictions:', error)
     return []

@@ -244,11 +244,30 @@ async def predict_traffic(request: PredictionRequest):
                 continue
             
             model_data = models[horizon]
-            model = model_data['model']
-            feature_columns = model_data['feature_columns']
             
-            # Prepare features
-            X = df_features[feature_columns].fillna(0)
+            # Extract model and feature columns (handle both dict and direct model formats)
+            if isinstance(model_data, dict):
+                model = model_data.get('model', model_data)
+                model_feature_cols = model_data.get('feature_columns', [])
+            else:
+                # Legacy format: model is directly stored
+                model = model_data
+                model_feature_cols = feature_columns
+            
+            if not model_feature_cols:
+                # Fallback: try to get from df_features
+                logger.warning(f"No feature columns found in model data for {horizon}min, using all numeric columns")
+                model_feature_cols = df_features.select_dtypes(include=[np.number]).columns.tolist()
+            
+            # Ensure all required features exist in df_features
+            missing_cols = [col for col in model_feature_cols if col not in df_features.columns]
+            if missing_cols:
+                logger.warning(f"Missing features {missing_cols} for {horizon}min model, filling with 0")
+                for col in missing_cols:
+                    df_features[col] = 0
+            
+            # Select and order features to match training order
+            X = df_features[model_feature_cols].fillna(0)
             
             # Make predictions
             predictions = model.predict(X)
@@ -336,13 +355,13 @@ async def predict_batch(road_segment_ids: List[str], prediction_horizons: List[i
 @app.get("/predict/all")
 async def predict_all_segments(horizon: int = 30):
     """
-    Predict traffic for all road segments.
+    Predict traffic for all road segments using current traffic readings.
     
     Args:
         horizon: Prediction horizon in minutes
         
     Returns:
-        Predictions for all segments
+        Predictions for all segments with current data
     """
     api_requests.labels(endpoint='/predict/all', method='GET').inc()
     
@@ -356,7 +375,7 @@ async def predict_all_segments(horizon: int = 30):
         )
     
     try:
-        # Load recent data
+        # Load recent traffic readings (last 60 minutes)
         df = data_loader.load_prediction_data(minutes=60)
         
         if df.empty:
@@ -367,13 +386,51 @@ async def predict_all_segments(horizon: int = 30):
                 timestamp=datetime.now()
             )
         
-        # Get latest reading per segment
-        df = df.sort_values('timestamp').groupby('road_segment_id').tail(1)
+        # Get latest reading per segment (most recent data)
+        df = df.sort_values('timestamp', ascending=False).groupby('road_segment_id').first().reset_index()
         
-        # Get all segment IDs
-        segment_ids = df['road_segment_id'].unique().tolist()
+        # Convert to prediction request format
+        readings = []
+        for _, row in df.iterrows():
+            # Ensure we have required fields
+            road_segment_id = row.get('road_segment_id', f"SEGMENT-{row.get('sensorId', '001')}")
+            speed_kmh = float(row.get('speed_kmh', row.get('averageSpeed', 40.0)))
+            vehicle_count = int(row.get('vehicle_count', row.get('vehicleCount', 0))) if pd.notna(row.get('vehicle_count', row.get('vehicleCount', 0))) else None
+            latitude = float(row.get('latitude', 42.6629)) if pd.notna(row.get('latitude')) else 42.6629
+            longitude = float(row.get('longitude', 21.1655)) if pd.notna(row.get('longitude')) else 21.1655
+            
+            # Get timestamp
+            ts = row.get('timestamp', datetime.now())
+            if isinstance(ts, str):
+                ts = pd.to_datetime(ts)
+            if pd.isna(ts):
+                ts = datetime.now()
+            
+            readings.append(TrafficReading(
+                road_segment_id=road_segment_id,
+                timestamp=ts if isinstance(ts, datetime) else pd.to_datetime(ts),
+                speed_kmh=speed_kmh,
+                vehicle_count=vehicle_count,
+                latitude=latitude,
+                longitude=longitude
+            ))
         
-        return await predict_batch(segment_ids, [horizon])
+        if not readings:
+            logger.warning("No valid readings to predict")
+            return PredictionResponse(
+                predictions=[],
+                model_version=models.get(horizon, {}).get('version', 'unknown'),
+                timestamp=datetime.now()
+            )
+        
+        # Create prediction request
+        request = PredictionRequest(
+            readings=readings,
+            prediction_horizons=[horizon]
+        )
+        
+        # Make predictions
+        return await predict_traffic(request)
     
     except Exception as e:
         logger.error(f"All segments prediction failed: {e}", exc_info=True)
@@ -383,6 +440,94 @@ async def predict_all_segments(horizon: int = 30):
             model_version="error",
             timestamp=datetime.now()
         )
+
+
+@app.get("/predict/congestion-hotspots")
+async def get_congestion_hotspots(horizon: int = 30):
+    """
+    Get biggest congestion hotspots with predictions and duration estimates.
+    Returns segments with worst congestion sorted by severity, including duration predictions.
+    """
+    api_requests.labels(endpoint='/predict/congestion-hotspots', method='GET').inc()
+    
+    try:
+        # Get predictions for all segments
+        predictions_response = await predict_all_segments(horizon)
+        
+        if not predictions_response or not predictions_response.predictions:
+            logger.warning("No predictions available for hotspots")
+            return []
+        
+        # Load current traffic data to get locations and congestion levels
+        df = data_loader.load_prediction_data(minutes=10)
+        
+        # Calculate congestion scores and get duration predictions
+        hotspots = []
+        normal_speed = 50.0  # Assume normal free-flow speed
+        
+        for pred in predictions_response.predictions:
+            current_speed = pred.current_speed_kmh
+            predicted_speed = pred.predicted_speed_kmh
+            
+            # Calculate congestion severity (0-1, where 1 is worst)
+            current_congestion_level = max(0, 1 - (current_speed / normal_speed))
+            predicted_congestion_level = max(0, 1 - (predicted_speed / normal_speed))
+            congestion_severity = max(current_congestion_level, predicted_congestion_level)
+            
+            # Get road segment data for location
+            segment_data = df[df.get('road_segment_id', '') == pred.road_segment_id] if not df.empty else pd.DataFrame()
+            if not segment_data.empty:
+                row = segment_data.iloc[0]
+                latitude = float(row.get('latitude', 42.6629)) if pd.notna(row.get('latitude')) else 42.6629
+                longitude = float(row.get('longitude', 21.1655)) if pd.notna(row.get('longitude')) else 21.1655
+            else:
+                # Default location (Prishtina center)
+                latitude = 42.6629
+                longitude = 21.1655
+            
+            # Get congestion duration prediction
+            duration_prediction = None
+            try:
+                duration_request = CongestionDurationRequest(
+                    road_segment_id=pred.road_segment_id,
+                    current_speed_kmh=current_speed,
+                    normal_speed_kmh=normal_speed,
+                    current_congestion_level=current_congestion_level,
+                    vehicle_count=None,
+                    latitude=latitude,
+                    longitude=longitude
+                )
+                duration_response = await predict_congestion_duration(duration_request)
+                duration_prediction = {
+                    "predicted_duration_minutes": duration_response.predicted_duration_minutes,
+                    "expected_clear_time": duration_response.expected_clear_time.isoformat() if hasattr(duration_response.expected_clear_time, 'isoformat') else str(duration_response.expected_clear_time),
+                    "confidence": duration_response.confidence
+                }
+            except Exception as e:
+                logger.warning(f"Could not get duration prediction for {pred.road_segment_id}: {e}")
+            
+            hotspots.append({
+                "road_segment_id": pred.road_segment_id,
+                "latitude": latitude,
+                "longitude": longitude,
+                "current_speed_kmh": current_speed,
+                "predicted_speed_kmh": predicted_speed,
+                "current_congestion_level": round(current_congestion_level, 3),
+                "predicted_congestion_level": round(predicted_congestion_level, 3),
+                "congestion_severity": round(congestion_severity, 3),
+                "prediction_horizon_minutes": pred.prediction_horizon_minutes,
+                "duration_prediction": duration_prediction,
+                "timestamp": pred.timestamp.isoformat() if hasattr(pred.timestamp, 'isoformat') else str(pred.timestamp)
+            })
+        
+        # Sort by congestion severity (worst first) - biggest congestions first
+        hotspots.sort(key=lambda x: x['congestion_severity'], reverse=True)
+        
+        return hotspots[:20]  # Return top 20 worst congestions
+    
+    except Exception as e:
+        logger.error(f"Congestion hotspots failed: {e}", exc_info=True)
+        return []
 
 
 @app.post("/predict/congestion-duration", response_model=CongestionDurationResponse)

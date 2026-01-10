@@ -16,6 +16,8 @@ interface PredictionMarkerProps {
   predictedSpeed: number
   horizon: number // minutes
   confidence?: number
+  durationMinutes?: number
+  expectedClearTime?: string
 }
 
 // Create custom icon for prediction markers
@@ -35,7 +37,9 @@ function PredictionMarker({
   currentSpeed, 
   predictedSpeed, 
   horizon,
-  confidence 
+  confidence,
+  durationMinutes,
+  expectedClearTime
 }: PredictionMarkerProps) {
   const speedChange = predictedSpeed - currentSpeed
   const percentChange = (speedChange / currentSpeed) * 100
@@ -108,6 +112,26 @@ function PredictionMarker({
                 <span className={`text-sm font-medium ${trend.color}`}>{trend.label}</span>
               </div>
               
+              {durationMinutes && (
+                <div className="text-xs text-gray-600 pt-2 border-t font-medium">
+                  ⏱ Duration: ~{durationMinutes} min
+                  {expectedClearTime && (
+                    <div className="text-gray-500 mt-1">
+                      Clear by: {new Date(expectedClearTime).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+              )}
+              {durationMinutes && (
+                <div className="text-xs text-gray-600 pt-2 border-t font-medium">
+                  ⏱ Duration: ~{durationMinutes} min
+                  {expectedClearTime && (
+                    <div className="text-gray-500 mt-1">
+                      Clear by: {new Date(expectedClearTime).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
+              )}
               {confidence && (
                 <div className="text-xs text-gray-500 pt-2 border-t">
                   Confidence: {(confidence * 100).toFixed(0)}%
