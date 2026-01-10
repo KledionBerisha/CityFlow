@@ -1,11 +1,17 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-content: [
+export default {
+  content: [
     "./index.html",
-    "./src/**/*.{js,jsx}"
-],
-    theme: {
-    extend: {},
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        'cityflow-primary': '#2563eb', // blue-600
+        'cityflow-primary-dark': '#1e40af', // blue-800
+      },
     },
-    plugins: [],
+  },
+  plugins: [],
 }
+

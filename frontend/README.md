@@ -1,16 +1,118 @@
-# React + Vite
+# CityFlow Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based frontend application for the CityFlow real-time traffic monitoring system.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Live Map**: Real-time visualization of city traffic with interactive map
+- **Dashboard**: Overview of traffic statistics and metrics
+- **Events**: Display of traffic incidents and events
+- **Predict**: Traffic prediction and forecasting
+- **Settings**: Application configuration
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **React Router** for navigation
+- **Leaflet** for map visualization
+- **Tailwind CSS** for styling
+- **Lucide React** for icons
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+- Node.js 18+ and npm/yarn/pnpm
+
+### Installation
+
+```bash
+cd frontend
+npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:3000`
+
+### Build
+
+```bash
+npm run build
+```
+
+## Backend Integration
+
+The frontend is configured to connect to the backend API Gateway at `http://localhost:8000/api`.
+
+### API Service Layer
+
+All API calls are centralized in `src/services/api.ts`. This file contains:
+
+- Placeholder implementations with fallback data for development
+- Clear TODO comments indicating which backend endpoints to connect
+- TypeScript interfaces for all data structures
+
+### Key API Endpoints to Connect
+
+1. **Vehicle Count**: `GET /api/traffic/vehicle-count`
+2. **Accident Count**: `GET /api/incidents/count?hours=24`
+3. **Current Location**: `GET /api/location/current`
+4. **Bus Locations**: `GET /api/bus-locations/current` (already available)
+5. **Routes**: `GET /api/routes` (already available)
+6. **Traffic Readings**: `GET /api/traffic/readings/current`
+7. **Predictions**: `GET /api/analytics/predictions`
+
+### Proxy Configuration
+
+The Vite dev server is configured to proxy `/api` requests to `http://localhost:8000` (see `vite.config.ts`).
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/      # Reusable UI components
+│   │   ├── Layout.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── DataPanel.tsx
+│   │   └── LocationPanel.tsx
+│   ├── pages/           # Page components
+│   │   ├── Dashboard.tsx
+│   │   ├── LiveMap.tsx
+│   │   ├── Events.tsx
+│   │   ├── Predict.tsx
+│   │   └── Settings.tsx
+│   ├── services/        # API service layer
+│   │   └── api.ts
+│   ├── hooks/           # Custom React hooks
+│   │   └── useMapData.ts
+│   ├── App.tsx          # Main app component
+│   ├── main.tsx         # Entry point
+│   └── index.css        # Global styles
+├── package.json
+├── vite.config.ts
+├── tailwind.config.js
+└── tsconfig.json
+```
+
+## Design Notes
+
+- **Color Scheme**: Blue (#2563eb) for primary branding
+- **Map**: Light beige background with yellow-highlighted roads
+- **Data Panels**: White cards with blue text for metrics
+- **Sidebar**: White background with blue active state
+
+## Next Steps
+
+1. Connect API endpoints in `src/services/api.ts`
+2. Add road overlay visualization to the map
+3. Implement real-time updates using WebSockets or SSE
+4. Add authentication/authorization
+5. Enhance map with bus markers and traffic overlays
+

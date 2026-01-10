@@ -1,11 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, useMap, GeoJSON } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import DataPanel from '../components/DataPanel'
 import LocationPanel from '../components/LocationPanel'
+import BusMarker from '../components/BusMarker'
+import TrafficMarker from '../components/TrafficMarker'
 import { useMapData } from '../hooks/useMapData'
+import { useBusLocations } from '../hooks/useBusLocations'
+import { useTrafficReadings } from '../hooks/useTrafficReadings'
 import { useRoadOverlays } from '../hooks/useRoadOverlays'
+import { getRoadTrafficData, RoadTrafficData } from '../services/api'
 
 // Fix for default marker icons in React Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -45,15 +50,97 @@ function MapController() {
   return null
 }
 
-// Component to render road overlays
+// Component to render road overlays with traffic-based colors
 function RoadOverlays() {
-  const roadData = useRoadOverlays()
-  
-  if (!roadData || roadData.length === 0) {
+  const basicRoadData = useRoadOverlays()
+  const [trafficRoadData, setTrafficRoadData] = useState<RoadTrafficData[]>([])
+
+  // Try to fetch traffic-based road data
+  useEffect(() => {
+    const fetchTrafficRoads = async () => {
+      try {
+        const data = await getRoadTrafficData()
+        if (data && data.length > 0) {
+          setTrafficRoadData(data)
+        }
+      } catch (error) {
+        // Silently fail - will use basic road data instead
+        console.debug('Traffic road data not available, using basic overlays')
+      }
+    }
+
+    fetchTrafficRoads()
+    const interval = setInterval(fetchTrafficRoads, 10000) // Update every 10 seconds
+    
+    return () => clearInterval(interval)
+  }, [])
+
+  // If we have traffic data, use it with colors
+  if (trafficRoadData && trafficRoadData.length > 0) {
+
+  // Style function for roads based on traffic
+  const getRoadStyle = (road: RoadTrafficData) => {
+    let color = '#FFD700' // Default yellow
+    let weight = 4
+
+    switch (road.congestionLevel) {
+      case 'SEVERE':
+        color = '#dc2626' // Red for heavy traffic
+        weight = 6
+        break
+      case 'HIGH':
+        color = '#ea580c' // Orange
+        weight = 5
+        break
+      case 'MODERATE':
+        color = '#eab308' // Yellow
+        weight = 4
+        break
+      case 'LOW':
+        color = '#22c55e' // Green
+        weight = 3
+        break
+      default:
+        color = '#808080' // Gray
+        weight = 3
+    }
+
+    return {
+      color,
+      weight,
+      opacity: 0.9,
+      fillColor: color,
+      fillOpacity: 0.3,
+    }
+  }
+
+    return (
+      <>
+        {trafficRoadData.map((road) => (
+          <GeoJSON
+            key={road.roadId}
+            data={{
+              type: 'Feature',
+              geometry: road.geometry,
+              properties: {
+                name: road.roadName,
+                congestionLevel: road.congestionLevel,
+                averageSpeed: road.averageSpeed,
+                vehicleCount: road.vehicleCount,
+              },
+            }}
+            style={() => getRoadStyle(road)}
+          />
+        ))}
+      </>
+    )
+  }
+
+  // Fallback to basic road overlays (yellow)
+  if (!basicRoadData || basicRoadData.length === 0) {
     return null
   }
   
-  // Style function for roads - yellow outline with gray fill
   const roadStyle = () => ({
     color: '#FFD700', // Yellow outline
     weight: 4,
@@ -64,7 +151,7 @@ function RoadOverlays() {
   
   return (
     <>
-      {roadData.map((road, index) => (
+      {basicRoadData.map((road, index) => (
         <GeoJSON
           key={index}
           data={road}
@@ -77,6 +164,8 @@ function RoadOverlays() {
 
 function LiveMap() {
   const { currentTime, vehicleCount, accidents, location } = useMapData()
+  const { busLocations } = useBusLocations()
+  const { trafficReadings } = useTrafficReadings()
 
   return (
     <div className="relative w-full h-full">
@@ -92,6 +181,16 @@ function LiveMap() {
         />
         <MapController />
         <RoadOverlays />
+        
+        {/* Bus Markers */}
+        {busLocations.map((bus) => (
+          <BusMarker key={bus.busId} bus={bus} />
+        ))}
+        
+        {/* Traffic Markers */}
+        {trafficReadings.map((reading) => (
+          <TrafficMarker key={reading.sensorId} reading={reading} />
+        ))}
       </MapContainer>
 
       {/* Data Panels - Top Right */}
