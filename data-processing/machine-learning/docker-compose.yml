@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  # MLflow Tracking Server
+  mlflow:
+    image: python:3.10-slim
+    container_name: cityflow-mlflow
+    command: >
+      sh -c "pip install mlflow==2.9.2 psycopg2-binary &&
+             mlflow server 
+             --backend-store-uri sqlite:///mlflow.db
+             --default-artifact-root ./mlruns
+             --host 0.0.0.0
+             --port 5001"
+    ports:
+      - "5001:5001"
+    volumes:
+      - mlflow_data:/app
+    working_dir: /app
+    networks:
+      - cityflow-ml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ML Model Serving API
+  ml-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cityflow-ml-api
+    command: python model_serving_api.py
+    ports:
+      - "8090:8090"
+      - "9095:9090"  # Prometheus metrics (mapped to 9095 to avoid conflict with Spark)
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=cityflow
+      - POSTGRES_USER=kledionberisha
+      - POSTGRES_PASSWORD=kledion123
+      - MONGODB_URI=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml
+    depends_on:
+      - mlflow
+    networks:
+      - cityflow-ml
+      - cityflow_default  # Connect to main CityFlow network
+    restart: unless-stopped
+
+  # Real-time Prediction Consumer
+  ml-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cityflow-ml-consumer
+    command: python realtime_prediction_consumer.py
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=cityflow
+      - POSTGRES_USER=kledionberisha
+      - POSTGRES_PASSWORD=kledion123
+      - MONGODB_URI=mongodb://mongo:27017
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml
+    depends_on:
+      - mlflow
+      - ml-api
+    networks:
+      - cityflow-ml
+      - cityflow_default
+    restart: unless-stopped
+
+volumes:
+  mlflow_data:
+
+networks:
+  cityflow-ml:
+    driver: bridge
+  cityflow_default:
+    external: true  # Use existing CityFlow network

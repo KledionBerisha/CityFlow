@@ -269,7 +269,7 @@ export async function getRoadTrafficData(): Promise<RoadTrafficData[]> {
 }
 
 // ============================================================================
-// Analytics/Prediction APIs
+// Analytics/Prediction APIs (ML Service)
 // ============================================================================
 
 export interface TrafficPrediction {
@@ -280,8 +280,89 @@ export interface TrafficPrediction {
   timeWindow: string
 }
 
+export interface MLPredictionRequest {
+  readings: {
+    road_segment_id: string
+    timestamp: string
+    speed_kmh: number
+    vehicle_count?: number
+    latitude?: number
+    longitude?: number
+  }[]
+  prediction_horizons: number[] // Minutes ahead: [10, 20, 30]
+}
+
+export interface MLPredictionResponse {
+  predictions: {
+    road_segment_id: string
+    current_speed_kmh: number
+    predicted_speed_kmh: number
+    prediction_horizon_minutes: number
+    confidence: number | null
+    timestamp: string
+  }[]
+  model_version: string
+  timestamp: string
+}
+
 /**
- * Get traffic predictions
+ * Get ML-based traffic speed predictions
+ * Connects to ML API: POST http://localhost:8090/predict
+ */
+export async function getMLPredictions(request: MLPredictionRequest): Promise<MLPredictionResponse | null> {
+  try {
+    const response = await fetch('http://localhost:8090/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+    
+    if (!response.ok) {
+      throw new Error(`ML API error: ${response.status}`)
+    }
+    
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching ML predictions:', error)
+    return null
+  }
+}
+
+/**
+ * Get predictions for all road segments
+ * Connects to ML API: GET http://localhost:8090/predict/all?horizon=30
+ */
+export async function getAllSegmentPredictions(horizon: number = 30): Promise<MLPredictionResponse | null> {
+  try {
+    const response = await fetch(`http://localhost:8090/predict/all?horizon=${horizon}`)
+    
+    if (!response.ok) {
+      throw new Error(`ML API error: ${response.status}`)
+    }
+    
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching all segment predictions:', error)
+    return null
+  }
+}
+
+/**
+ * Check ML API health
+ */
+export async function checkMLAPIHealth(): Promise<boolean> {
+  try {
+    const response = await fetch('http://localhost:8090/health')
+    return response.ok
+  } catch (error) {
+    return false
+  }
+}
+
+/**
+ * Get traffic predictions (Legacy - for backward compatibility)
  * TODO: Connect to backend endpoint (e.g., GET /api/analytics/predictions)
  */
 export async function getTrafficPredictions(): Promise<TrafficPrediction[]> {

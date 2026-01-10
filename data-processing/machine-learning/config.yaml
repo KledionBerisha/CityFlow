@@ -1,0 +1,160 @@
+# CityFlow ML Pipeline Configuration
+
+project:
+  name: "cityflow-ml"
+  version: "1.0.0"
+
+# MLflow Configuration
+mlflow:
+  tracking_uri: "http://localhost:5001"
+  experiment_name: "cityflow-traffic-prediction"
+  artifact_location: "./mlruns"
+  backend_store_uri: "sqlite:///mlflow.db"
+
+# Data Sources
+data:
+  delta_lake_path: "/tmp/cityflow/delta-lake"
+  postgres:
+    host: "localhost"
+    port: 5433
+    database: "cityflow"
+    user: "kledionberisha"
+    password: "kledion123"
+  mongodb:
+    uri: "mongodb://localhost:27017"
+    database: "cityflow"
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+
+# Kafka Configuration
+kafka:
+  bootstrap_servers: "localhost:9093"
+  schema_registry_url: "http://localhost:8081"
+  consumer_group: "ml-prediction-service"
+  topics:
+    traffic_input: "traffic.reading.events"
+    prediction_output: "traffic.prediction.events"
+
+# Feature Engineering
+features:
+  temporal:
+    - hour_of_day
+    - day_of_week
+    - is_weekend
+    - is_rush_hour
+    - month
+    - season
+  
+  traffic:
+    - avg_speed_lag_5min
+    - avg_speed_lag_15min
+    - avg_speed_lag_30min
+    - avg_speed_lag_1hour
+    - vehicle_count_lag_5min
+    - vehicle_count_lag_15min
+    - congestion_level
+  
+  geospatial:
+    - road_segment_id
+    - latitude
+    - longitude
+    - segment_type
+  
+  rolling_windows:
+    - 5min
+    - 15min
+    - 30min
+    - 1hour
+    - 3hour
+
+# Model Configuration
+models:
+  traffic_speed_prediction:
+    type: "xgboost"
+    prediction_horizons: [10, 20, 30]  # minutes
+    target: "speed_kmh"
+    hyperparameters:
+      n_estimators: 200
+      max_depth: 8
+      learning_rate: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      min_child_weight: 3
+      gamma: 0.1
+    
+  congestion_classification:
+    type: "lightgbm"
+    classes: ["FREE_FLOW", "MODERATE", "HEAVY", "SEVERE"]
+    hyperparameters:
+      n_estimators: 150
+      max_depth: 6
+      learning_rate: 0.05
+      num_leaves: 31
+  
+  bus_delay_prediction:
+    type: "xgboost"
+    prediction_horizons: [15, 30]  # minutes
+    target: "delay_minutes"
+    hyperparameters:
+      n_estimators: 150
+      max_depth: 6
+      learning_rate: 0.05
+
+# Training Configuration
+training:
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+  
+  # Data Time Range
+  train_days: 30  # Use last 30 days for training
+  min_samples: 1000
+  
+  # Cross Validation
+  cv_folds: 5
+  cv_strategy: "time_series_split"
+  
+  # Early Stopping
+  early_stopping_rounds: 20
+  
+  # Model Evaluation Metrics
+  metrics:
+    regression: ["mse", "rmse", "mae", "r2", "mape"]
+    classification: ["accuracy", "precision", "recall", "f1"]
+
+# Model Serving
+serving:
+  api:
+    host: "0.0.0.0"
+    port: 8090
+    workers: 4
+    log_level: "info"
+  
+  prediction:
+    batch_size: 100
+    timeout_seconds: 5
+    cache_ttl_seconds: 60
+  
+  monitoring:
+    enable_prometheus: true
+    prometheus_port: 9090
+
+# Batch Prediction Jobs
+batch_jobs:
+  traffic_prediction:
+    schedule: "*/5 * * * *"  # Every 5 minutes
+    output_topic: "traffic.prediction.events"
+    output_db: "postgres"
+  
+  model_refresh:
+    schedule: "0 2 * * 0"  # Every Sunday at 2 AM
+    retrain: true
+    min_accuracy_threshold: 0.75
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  file: "./logs/ml-pipeline.log"
