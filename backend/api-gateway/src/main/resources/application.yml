@@ -20,6 +20,17 @@ spring:
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
 
+        # Auth Service Routes (no prefix stripping since controller expects /api/auth)
+        - id: auth-service
+          uri: ${ROUTE_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+
         # Bus Ingestion Service Routes
         - id: bus-service
           uri: ${BUS_SERVICE_URL:http://localhost:8082}

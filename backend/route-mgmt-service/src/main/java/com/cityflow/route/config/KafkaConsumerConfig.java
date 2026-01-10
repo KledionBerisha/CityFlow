@@ -16,7 +16,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 @Configuration
 public class KafkaConsumerConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
+    @Value("${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9093}")
     private String bootstrapServers;
 
     @Value("${spring.kafka.consumer.group-id:route-mgmt-service}")
