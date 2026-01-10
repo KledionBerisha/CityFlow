@@ -73,26 +73,102 @@ r2 = r2_score(y_test, y_pred)
 print(f"[OK] RMSE: {rmse:.2f} km/h")
 print(f"[OK] R2: {r2:.4f}")
 
-# Save
+# Save model in expected format (with feature columns and encoders)
 print("\n4. Saving model...")
 os.makedirs('models', exist_ok=True)
-model_path = 'models/traffic_prediction_30min_simple.pkl'
-joblib.dump(model, model_path)
+
+# Save in format expected by model_serving_api.py
+model_data = {
+    'model': model,
+    'feature_columns': feature_cols,  # Store feature column names
+    'label_encoders': {},  # No categorical encoding needed for this simple model
+    'config': {
+        'prediction_horizon': 30,
+        'model_type': 'xgboost',
+        'version': '1.0.0'
+    }
+}
+
+# Save as traffic_pred_30min.pkl (expected format)
+model_path = 'models/traffic_pred_30min.pkl'
+joblib.dump(model_data, model_path)
 print(f"[OK] Model saved: {model_path}")
 
+# Also train and save 10min and 20min models
+print("\n5. Training additional models for 10min and 20min horizons...")
+for horizon in [10, 20]:
+    if horizon == 30:
+        continue  # Already trained
+    
+    # Create target for this horizon
+    shifts = horizon // 5  # 5-minute intervals
+    df_horizon = df.copy()
+    df_horizon['target_speed'] = df_horizon.groupby('road_segment_id')['speed_kmh'].shift(-shifts)
+    df_horizon = df_horizon.dropna()
+    
+    if len(df_horizon) < 100:
+        print(f"[SKIP] Not enough data for {horizon}min model")
+        continue
+    
+    X_h = df_horizon[feature_cols]
+    y_h = df_horizon['target_speed']
+    
+    X_train_h, X_test_h, y_train_h, y_test_h = train_test_split(X_h, y_h, test_size=0.2, random_state=42)
+    
+    model_h = xgb.XGBRegressor(
+        n_estimators=100,
+        max_depth=6,
+        learning_rate=0.1,
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    model_h.fit(X_train_h, y_train_h)
+    
+    # Evaluate
+    y_pred_h = model_h.predict(X_test_h)
+    rmse_h = np.sqrt(mean_squared_error(y_test_h, y_pred_h))
+    r2_h = r2_score(y_test_h, y_pred_h)
+    
+    print(f"[OK] {horizon}min model - RMSE: {rmse_h:.2f}, R2: {r2_h:.4f}")
+    
+    # Save
+    model_data_h = {
+        'model': model_h,
+        'feature_columns': feature_cols,
+        'label_encoders': {},
+        'config': {
+            'prediction_horizon': horizon,
+            'model_type': 'xgboost',
+            'version': '1.0.0'
+        }
+    }
+    
+    model_path_h = f'models/traffic_pred_{horizon}min.pkl'
+    joblib.dump(model_data_h, model_path_h)
+    print(f"[OK] Model saved: {model_path_h}")
+
 # Test prediction
-print("\n5. Test prediction...")
+print("\n6. Test prediction...")
 sample = X_test.iloc[0:1]
 prediction = model.predict(sample)[0]
 actual = y_test.iloc[0]
-print(f"[OK] Sample prediction:")
+print(f"[OK] Sample prediction (30min):")
 print(f"  Input speed: {sample['speed_kmh'].values[0]:.1f} km/h")
-print(f"  Predicted speed (30min): {prediction:.1f} km/h")
+print(f"  Predicted speed: {prediction:.1f} km/h")
 print(f"  Actual speed: {actual:.1f} km/h")
 print(f"  Error: {abs(prediction - actual):.1f} km/h")
 
 print("\n" + "="*80)
 print("[SUCCESS] Training Complete!")
 print("="*80)
-print(f"\nModel file: {os.path.abspath(model_path)}")
-print(f"Model size: {os.path.getsize(model_path) / 1024:.1f} KB")
+print(f"\nModels saved:")
+for horizon in [10, 20, 30]:
+    model_file = f'models/traffic_pred_{horizon}min.pkl'
+    if os.path.exists(model_file):
+        size_kb = os.path.getsize(model_file) / 1024
+        print(f"  - {model_file} ({size_kb:.1f} KB)")
+print(f"\nNext steps:")
+print("1. Restart ML API: docker-compose restart ml-api")
+print("2. Check health: http://localhost:8090/health")
+print("3. Test predictions: http://localhost:8090/predict/all?horizon=30")

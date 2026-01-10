@@ -218,29 +218,161 @@ class DataLoader:
         
         return df
     
+    def load_from_mongodb(self, 
+                          collection_name: str,
+                          start_date: Optional[datetime] = None,
+                          end_date: Optional[datetime] = None,
+                          limit: Optional[int] = None) -> pd.DataFrame:
+        """
+        Load data from MongoDB (where traffic readings are stored).
+        
+        Args:
+            collection_name: Name of MongoDB collection
+            start_date: Start date filter
+            end_date: End date filter
+            limit: Maximum number of records to load
+            
+        Returns:
+            DataFrame with loaded data
+        """
+        logger.info(f"Loading data from MongoDB collection: {collection_name}")
+        
+        mongo_client = self._get_mongo_client()
+        mongo_config = self.config['data']['mongodb']
+        db_name = mongo_config.get('database', 'cityflow')
+        db = mongo_client[db_name]
+        collection = db[collection_name]
+        
+        # Build query
+        query = {}
+        if start_date or end_date:
+            timestamp_query = {}
+            if start_date:
+                timestamp_query['$gte'] = start_date
+            if end_date:
+                timestamp_query['$lte'] = end_date
+            if timestamp_query:
+                query['timestamp'] = timestamp_query
+        
+        # Execute query
+        cursor = collection.find(query).sort('timestamp', -1)
+        if limit:
+            cursor = cursor.limit(limit)
+        
+        # Convert to DataFrame
+        data = list(cursor)
+        
+        if not data:
+            logger.warning(f"No data found in MongoDB collection: {collection_name}")
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data)
+        
+        # Convert MongoDB ObjectId to string if present
+        if '_id' in df.columns:
+            df['_id'] = df['_id'].astype(str)
+        
+        logger.info(f"Loaded {len(df)} rows from MongoDB")
+        return df
+    
     def load_prediction_data(self, minutes: int = 60) -> pd.DataFrame:
         """
-        Load recent data for making predictions.
+        Load recent traffic readings for making predictions.
+        Tries MongoDB first (where traffic service stores data), then falls back to synthetic data.
         
         Args:
             minutes: Number of recent minutes to load
             
         Returns:
-            DataFrame with recent data
+            DataFrame with recent traffic readings
         """
         logger.info(f"Loading prediction data for last {minutes} minutes...")
         
         end_date = datetime.now()
         start_date = end_date - timedelta(minutes=minutes)
         
-        # Load from PostgreSQL (most recent aggregated data)
-        df = self.load_aggregated_traffic(window='5min', days=1)
+        try:
+            # Try loading from MongoDB (where traffic service stores readings)
+            df = self.load_from_mongodb(
+                collection_name='traffic_readings',
+                start_date=start_date,
+                end_date=end_date,
+                limit=1000  # Limit to prevent memory issues
+            )
+            
+            if not df.empty:
+                # Map MongoDB field names to expected format
+                field_mapping = {}
+                if 'roadSegmentId' in df.columns:
+                    field_mapping['roadSegmentId'] = 'road_segment_id'
+                if 'averageSpeed' in df.columns:
+                    field_mapping['averageSpeed'] = 'speed_kmh'
+                if 'vehicleCount' in df.columns:
+                    field_mapping['vehicleCount'] = 'vehicle_count'
+                if 'sensorCode' in df.columns:
+                    field_mapping['sensorCode'] = 'sensor_id'
+                if 'sensorId' in df.columns and 'sensor_id' not in field_mapping:
+                    field_mapping['sensorId'] = 'sensor_id'
+                
+                if field_mapping:
+                    df = df.rename(columns=field_mapping)
+                
+                # Ensure timestamp is datetime
+                if 'timestamp' in df.columns:
+                    df['timestamp'] = pd.to_datetime(df['timestamp'])
+                
+                # Ensure required columns exist with proper mapping
+                if 'speed_kmh' not in df.columns:
+                    if 'averageSpeed' in df.columns:
+                        df['speed_kmh'] = df['averageSpeed']
+                    else:
+                        df['speed_kmh'] = 40.0  # Default speed
+                
+                if 'vehicle_count' not in df.columns:
+                    if 'vehicleCount' in df.columns:
+                        df['vehicle_count'] = df['vehicleCount']
+                    else:
+                        df['vehicle_count'] = 0
+                
+                # Create road_segment_id from sensorCode/sensorId if needed
+                if 'road_segment_id' not in df.columns or df['road_segment_id'].isna().all():
+                    if 'sensorCode' in df.columns:
+                        df['road_segment_id'] = df['sensorCode'].apply(lambda x: f"ROAD-SEG-{str(x).split('-')[-1]}" if pd.notna(x) and x else "ROAD-SEG-001")
+                    elif 'sensor_id' in df.columns:
+                        df['road_segment_id'] = df['sensor_id'].apply(lambda x: f"ROAD-SEG-{str(x).split('-')[-1]}" if pd.notna(x) and x else "ROAD-SEG-001")
+                    elif 'sensorId' in df.columns:
+                        df['road_segment_id'] = df['sensorId'].apply(lambda x: f"ROAD-SEG-{str(x).split('-')[-1]}" if pd.notna(x) and x else "ROAD-SEG-001")
+                    else:
+                        df['road_segment_id'] = "ROAD-SEG-001"
+                
+                # Add latitude/longitude if missing (will use sensor locations or defaults)
+                if 'latitude' not in df.columns:
+                    df['latitude'] = 42.6629
+                if 'longitude' not in df.columns:
+                    df['longitude'] = 21.1655
+                
+                logger.info(f"Loaded {len(df)} recent traffic readings from MongoDB")
+                return df
+        except Exception as e:
+            logger.warning(f"Could not load from MongoDB: {e}")
         
-        # Filter to recent time window
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df = df[df['timestamp'] >= start_date]
+        # Fallback: Try PostgreSQL aggregated data
+        try:
+            df = self.load_aggregated_traffic(window='5min', days=1)
+            if not df.empty:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df[df['timestamp'] >= start_date]
+                logger.info(f"Loaded {len(df)} records from PostgreSQL")
+                return df
+        except Exception as e:
+            logger.warning(f"Could not load from PostgreSQL: {e}")
         
-        logger.info(f"Loaded {len(df)} recent records for prediction")
+        # Final fallback: Generate synthetic data based on current time
+        logger.warning("No data available from databases, generating synthetic data for prediction")
+        df = self.generate_synthetic_data(num_days=1, num_segments=10, freq='5min')
+        df = df[df['timestamp'] >= start_date] if 'timestamp' in df.columns else df
+        
+        logger.info(f"Using {len(df)} synthetic records for prediction")
         return df
     
     def generate_synthetic_data(self, 

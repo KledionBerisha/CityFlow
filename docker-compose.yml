@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.3
@@ -241,7 +239,7 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
       INCIDENT_SERVICE_URL: http://incident-detection-service:8086
       CAR_SERVICE_URL: http://car-ingestion-service:8088
-      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://host.docker.internal:8090}
+      ML_SERVICE_URL: http://ml-api:8090
       OAUTH2_ISSUER_URI: http://keycloak:8080/realms/cityflow
       APP_SECURITY_ENABLED: "false"
       SPRING_DATA_REDIS_HOST: redis
@@ -256,10 +254,65 @@ services:
       - analytics-service
       - notification-service
       - incident-detection-service
+      - ml-api
       - redis
       - keycloak
+
+  # MLflow Tracking Server
+  mlflow:
+    image: python:3.10-slim
+    container_name: cityflow-mlflow
+    command: >
+      sh -c "apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* &&
+             pip install mlflow==2.9.2 psycopg2-binary &&
+             mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlruns --host 0.0.0.0 --port 5001"
+    ports:
+      - "5001:5001"
+    volumes:
+      - mlflow_data:/app
+    working_dir: /app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ML Model Serving API
+  ml-api:
+    build:
+      context: ./data-processing/machine-learning
+      dockerfile: Dockerfile
+    container_name: cityflow-ml-api
+    command: python model_serving_api.py
+    ports:
+      - "8090:8090"
+      - "9095:9090"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=cityflow
+      - POSTGRES_USER=kledionberisha
+      - POSTGRES_PASSWORD=kledion123
+      - MONGODB_URI=mongodb://mongo:27017/cityflow
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    volumes:
+      - ./data-processing/machine-learning/models:/app/models
+      - ./data-processing/machine-learning/logs:/app/logs
+      - ./data-processing/machine-learning/config.yaml:/app/config.yaml
+      - ./data-processing/machine-learning/model_serving_api.py:/app/model_serving_api.py
+    depends_on:
+      - mlflow
+      - postgres
+      - mongo
+      - redis
+      - kafka
+    restart: unless-stopped
 
 volumes:
   pgdata:
   mongodata:
   redisdata:
+  mlflow_data:
