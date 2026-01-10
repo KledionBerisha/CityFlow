@@ -98,6 +98,9 @@ public class BusLocationService {
                 .timestamp(location.getTimestamp())
                 .occupancy(location.getOccupancy())
                 .source(location.getSource() != null ? location.getSource().name() : null)
+                .nextStopId(location.getNextStopId())
+                .distanceToNextStopKm(location.getDistanceToNextStopKm())
+                .estimatedArrivalSeconds(location.getEstimatedArrivalSeconds())
                 .build();
     }
 
@@ -111,6 +114,9 @@ public class BusLocationService {
                 .speedKmh(cache.getSpeedKmh())
                 .heading(cache.getHeading())
                 .timestamp(cache.getTimestamp())
+                .nextStopId(cache.getNextStopId())
+                .distanceToNextStopKm(cache.getDistanceToNextStopKm())
+                .estimatedArrivalSeconds(cache.getEstimatedArrivalSeconds())
                 .build();
     }
 }

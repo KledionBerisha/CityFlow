@@ -60,6 +60,7 @@ app:
     enabled: ${APP_SIMULATOR_ENABLED:true}
     interval-ms: 5000  # Update every 5 seconds
     speed-kmh: 40      # Average speed in km/h
+    stop-wait-seconds: 30  # Time to wait at each stop in seconds
   redis:
     ttl-seconds: 300   # Cache bus positions for 5 minutes
   route-service:

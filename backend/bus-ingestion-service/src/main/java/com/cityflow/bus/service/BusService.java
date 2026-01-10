@@ -105,6 +105,21 @@ public class BusService {
                         HttpStatus.NOT_FOUND, "Bus not found")));
     }
 
+    public Mono<BusResponse> updateRoute(String id, UUID routeId) {
+        return busRepository.findById(id)
+                .flatMap(bus -> {
+                    bus.setCurrentRouteId(routeId);
+                    bus.setUpdatedAt(Instant.now());
+
+                    return busRepository.save(bus)
+                            .doOnSuccess(updated -> log.info("Updated bus {} route to {}", 
+                                    bus.getVehicleId(), routeId))
+                            .map(this::toResponse);
+                })
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Bus not found")));
+    }
+
     private BusResponse toResponse(Bus bus) {
         return BusResponse.builder()
                 .id(bus.getId())

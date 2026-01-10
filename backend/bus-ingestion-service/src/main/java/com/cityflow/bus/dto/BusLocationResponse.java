@@ -15,6 +15,9 @@ public class BusLocationResponse {
     private Instant timestamp;
     private Integer occupancy;
     private String source;
+    private String nextStopId;
+    private Double distanceToNextStopKm;
+    private Integer estimatedArrivalSeconds;
 
     public BusLocationResponse() {
     }
@@ -35,6 +38,9 @@ public class BusLocationResponse {
         private Instant timestamp;
         private Integer occupancy;
         private String source;
+        private String nextStopId;
+        private Double distanceToNextStopKm;
+        private Integer estimatedArrivalSeconds;
 
         public BusLocationResponseBuilder id(String id) { this.id = id; return this; }
         public BusLocationResponseBuilder busId(String busId) { this.busId = busId; return this; }
@@ -47,6 +53,9 @@ public class BusLocationResponse {
         public BusLocationResponseBuilder timestamp(Instant timestamp) { this.timestamp = timestamp; return this; }
         public BusLocationResponseBuilder occupancy(Integer occupancy) { this.occupancy = occupancy; return this; }
         public BusLocationResponseBuilder source(String source) { this.source = source; return this; }
+        public BusLocationResponseBuilder nextStopId(String nextStopId) { this.nextStopId = nextStopId; return this; }
+        public BusLocationResponseBuilder distanceToNextStopKm(Double distanceToNextStopKm) { this.distanceToNextStopKm = distanceToNextStopKm; return this; }
+        public BusLocationResponseBuilder estimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; return this; }
 
         public BusLocationResponse build() {
             BusLocationResponse response = new BusLocationResponse();
@@ -61,6 +70,9 @@ public class BusLocationResponse {
             response.timestamp = this.timestamp;
             response.occupancy = this.occupancy;
             response.source = this.source;
+            response.nextStopId = this.nextStopId;
+            response.distanceToNextStopKm = this.distanceToNextStopKm;
+            response.estimatedArrivalSeconds = this.estimatedArrivalSeconds;
             return response;
         }
     }
@@ -97,4 +109,13 @@ public class BusLocationResponse {
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }
+
+    public String getNextStopId() { return nextStopId; }
+    public void setNextStopId(String nextStopId) { this.nextStopId = nextStopId; }
+
+    public Double getDistanceToNextStopKm() { return distanceToNextStopKm; }
+    public void setDistanceToNextStopKm(Double distanceToNextStopKm) { this.distanceToNextStopKm = distanceToNextStopKm; }
+
+    public Integer getEstimatedArrivalSeconds() { return estimatedArrivalSeconds; }
+    public void setEstimatedArrivalSeconds(Integer estimatedArrivalSeconds) { this.estimatedArrivalSeconds = estimatedArrivalSeconds; }
 }
